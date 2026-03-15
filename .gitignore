@@ -1,0 +1,111 @@
+############################
+# OS
+############################
+.DS_Store
+Thumbs.db
+
+############################
+# Environment variables
+############################
+.env
+.env.*
+!.env.example
+
+############################
+# Logs
+############################
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+############################
+# Node / Next.js
+############################
+node_modules/
+.next/
+out/
+dist/
+build/
+
+# Next.js cache
+.next/cache/
+
+# TypeScript
+*.tsbuildinfo
+
+############################
+# Python
+############################
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py[cod]
+
+# virtualenv
+venv/
+.venv/
+env/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+############################
+# Go
+############################
+# compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# go build output
+bin/
+dist/
+
+# go workspace
+go.work
+go.work.sum
+
+# temporary files
+tmp/
+*.out
+
+############################
+# Docker
+############################
+docker-compose.override.yml
+
+############################
+# IDE
+############################
+.vscode/
+.idea/
+
+############################
+# Testing / coverage
+############################
+coverage/
+.coverage
+coverage.out
+
+############################
+# Database
+############################
+*.sqlite
+*.sqlite3
+
+############################
+# Misc
+############################
+*.swp
+*.swo
+*~
