@@ -10,18 +10,26 @@
 ## 起動手順
 
 1. リポジトリをクローン
-   git clone https://github.com/KinuGra/salmon-ai.git
-   cd salmon-ai
+
+```
+git clone https://github.com/KinuGra/salmon-ai.git
+cd salmon-ai
+```
 
 2. 環境変数ファイルを作成・編集
-   backend/.env
-   ai/.env
-   frontend/.env.local
-   （Firebaseの設定値などを記入）
+
+```
+backend/.env
+ai/.env
+frontend/.env.local
+```
 
 3. 起動
-   cd infra
-   docker compose up --build
+
+```
+cd infra
+docker compose up --build
+```
 
 ## 確認
 
