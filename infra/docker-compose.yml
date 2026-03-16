@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d appdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/backend.dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../backend:/app # ソースをマウント → air が変更を検知
+      - /app/tmp # tmp はマウントしない
+    env_file:
+      - ../backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+  ai:
+    build:
+      context: ..
+      dockerfile: infra/ai.dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../ai:/app # ソースをマウント → uvicorn --reload が検知
+    env_file:
+      - ../ai/.env
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/frontend.dev.dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../frontend:/app # ソースをマウント → next dev が検知
+      - /app/node_modules # コンテナ内のnode_modulesを保護
+      - /app/.next # ビルドキャッシュを保護
+    env_file:
+      - ../frontend/.env.local
+    depends_on:
+      - backend
+volumes:
+  postgres_data:
