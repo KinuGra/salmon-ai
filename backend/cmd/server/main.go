@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/salmon-ai/salmon-ai/internal/model"
+	"github.com/salmon-ai/salmon-ai/internal/repository"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
@@ -49,6 +50,28 @@ func main() {
 	} else {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
+
+	// -------------------------------------------------------
+	// TODO: 以下はTaskRepositoryの動作確認用テストコードです。
+	//       確認が完了したら削除してください。
+	// -------------------------------------------------------
+	taskRepo := repository.NewTaskRepository(db)
+	testTask := &model.Task{
+		UserID: mockUser.ID,
+		Title:  "テストタスク",
+	}
+	if err := taskRepo.Create(testTask); err != nil {
+		log.Printf("create failed: %v", err)
+	} else {
+		log.Printf("task created: id=%d", testTask.ID)
+	}
+	tasks, err := taskRepo.FindByUserID(mockUser.ID)
+	if err != nil {
+		log.Printf("find failed: %v", err)
+	} else {
+		log.Printf("tasks found: %d件", len(tasks))
+	}
+	// -------------------------------------------------------
 
 	r := gin.Default()
 
