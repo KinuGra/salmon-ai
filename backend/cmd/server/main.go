@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
@@ -20,6 +21,34 @@ func main() {
 	defer sqlDB.Close()
 
 	log.Println("database connected successfully")
+
+	if err := db.AutoMigrate(
+		&model.User{},
+		&model.Category{},
+		&model.Task{},
+		&model.Reflection{},
+		&model.ReflectionMessage{},
+		&model.Report{},
+	); err != nil {
+		log.Fatalf("failed to migrate database: %v", err)
+	}
+
+	log.Println("database migrated successfully")
+
+	// モックユーザーの作成
+	var mockUser model.User
+	result := db.FirstOrCreate(&mockUser, model.User{
+		Email: "mock@example.com",
+		Name: "モックユーザー",
+	})
+	if result.Error != nil {
+		log.Fatalf("failed to create mock user: %v", result.Error)
+	}
+	if result.RowsAffected == 1 {
+		log.Printf("mock user created: id=%d", mockUser.ID)
+	} else {
+		log.Printf("mock user already exists: id=%d", mockUser.ID)
+	}
 
 	r := gin.Default()
 
