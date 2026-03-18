@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Task } from "./types";
 import { MOCK_TASKS } from "./mock-data";
 import {
@@ -8,6 +8,7 @@ import {
   TIMELINE_START_HOUR,
   TIMELINE_END_HOUR,
   minsToLabel,
+  topToIso,
 } from "./utils";
 import TaskBlock from "./TaskBlock";
 import InboxDrawer from "./InboxDrawer";
@@ -24,13 +25,94 @@ const MOTIVATION_QUOTES = [
   "今日の積み上げが未来になる",
 ];
 
+const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+// ────────────────────────────────────────────
+// ② 週ナビゲーション
+// ────────────────────────────────────────────
+function DateNav({
+  selected,
+  onChange,
+}: {
+  selected: Date;
+  onChange: (d: Date) => void;
+}) {
+  // 選択日を中心に前後3日 = 合計7日
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(selected);
+    d.setDate(d.getDate() - 3 + i);
+    return d;
+  });
+
+  const todayStr = new Date().toDateString();
+
+  return (
+    <div className="flex gap-1 mb-3">
+      {days.map((day, i) => {
+        const isSelected = day.toDateString() === selected.toDateString();
+        const isToday = day.toDateString() === todayStr;
+        const dow = day.getDay();
+        const isSat = dow === 6;
+        const isSun = dow === 0;
+
+        return (
+          <button
+            key={i}
+            onClick={() => onChange(new Date(day))}
+            className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${
+              isSelected
+                ? "bg-indigo-600 shadow-sm"
+                : "hover:bg-slate-100 active:scale-95"
+            }`}
+          >
+            {/* 曜日 */}
+            <span
+              className={`text-[9px] font-semibold mb-0.5 leading-none ${
+                isSelected
+                  ? "text-indigo-200"
+                  : isSat
+                  ? "text-blue-400"
+                  : isSun
+                  ? "text-red-400"
+                  : "text-slate-400"
+              }`}
+            >
+              {DAY_LABELS[dow]}
+            </span>
+            {/* 日付 */}
+            <span
+              className={`text-[14px] font-bold leading-none ${
+                isSelected
+                  ? "text-white"
+                  : isToday
+                  ? "text-indigo-600"
+                  : "text-slate-800"
+              }`}
+            >
+              {day.getDate()}
+            </span>
+            {/* 今日インジケーター */}
+            {isToday && !isSelected && (
+              <div className="w-1 h-1 rounded-full bg-indigo-400 mt-1" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// 現在時刻ライン
+// ────────────────────────────────────────────
 function CurrentTimeLine() {
   const [top, setTop] = useState<number | null>(null);
 
   useEffect(() => {
     const calc = () => {
       const now = new Date();
-      const mins = now.getHours() * 60 + now.getMinutes() - TIMELINE_START_HOUR * 60;
+      const mins =
+        now.getHours() * 60 + now.getMinutes() - TIMELINE_START_HOUR * 60;
       if (mins < 0 || mins > (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60) {
         setTop(null);
       } else {
@@ -115,17 +197,34 @@ function AIModal({
   );
 }
 
+// ────────────────────────────────────────────
+// メインページ
+// ────────────────────────────────────────────
 export default function TimeBlockingPage() {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
   const [showAI, setShowAI] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // D&D中のドロップ位置インジケーター（top px）
+  const [dropIndicator, setDropIndicator] = useState<number | null>(null);
+
   const timelineRef = useRef<HTMLDivElement>(null);
   const quoteIdx = useRef(Math.floor(Math.random() * 4));
 
   const scheduled = tasks.filter((t) => t.start_time !== null);
   const inbox = tasks.filter((t) => t.start_time === null);
 
-  const handleAchievementChange = (id: number, value: number) => {
+  // ② 日付変更 → 本来は GET /tasks?date=YYYY-MM-DD を呼ぶ
+  function handleDateChange(d: Date) {
+    setSelectedDate(d);
+    // TODO: TanStack Query の invalidateQueries / refetch に置き換える
+    console.log(
+      "[API] GET /tasks?date=",
+      d.toISOString().slice(0, 10)
+    );
+  }
+
+  // 達成度変更
+  function handleAchievementChange(id: number, value: number) {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
@@ -137,12 +236,60 @@ export default function TimeBlockingPage() {
           : t
       )
     );
-  };
+  }
 
-  const totalHeight = (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
+  // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (!timelineRef.current) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const rawTop = e.clientY - rect.top;
+    // 15分単位に丸めた top を表示
+    const snappedTop = Math.round(rawTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
+    setDropIndicator(snappedTop);
+  }, []);
 
-  const today = new Date();
-  const dateLabel = today.toLocaleDateString("ja-JP", {
+  const handleDragLeave = useCallback(() => {
+    setDropIndicator(null);
+  }, []);
+
+  // ③ D&D: ドロップ → start_time / end_time を計算してオプティミスティック更新
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setDropIndicator(null);
+
+      const taskId = Number(e.dataTransfer.getData("taskId"));
+      if (!taskId || !timelineRef.current) return;
+
+      const rect = timelineRef.current.getBoundingClientRect();
+      const rawTop = e.clientY - rect.top;
+
+      const start = topToIso(rawTop, selectedDate);
+      // デフォルト30分後をend_timeに設定
+      const endDate = new Date(start);
+      endDate.setMinutes(endDate.getMinutes() + 30);
+      const end = endDate.toISOString();
+
+      // オプティミスティック更新: 即座にUIへ反映
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId ? { ...t, start_time: start, end_time: end } : t
+        )
+      );
+
+      // TODO: 本番では TanStack Query の mutation に置き換える
+      // PUT /tasks/:id  { start_time: start, end_time: end }
+      console.log("[API] PUT /tasks/", taskId, { start_time: start, end_time: end });
+    },
+    [selectedDate]
+  );
+
+  const totalHeight =
+    (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
+
+  const dateLabel = selectedDate.toLocaleDateString("ja-JP", {
     month: "long",
     day: "numeric",
     weekday: "short",
@@ -155,10 +302,10 @@ export default function TimeBlockingPage() {
         {/* Row 1: date + quote */}
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-[11px] text-slate-400 font-medium leading-none mb-0.5">
+            <p className="text-[10px] text-slate-400 font-medium leading-none mb-0.5">
               タイムブロッキング
             </p>
-            <h1 className="text-[18px] font-bold text-slate-800 leading-tight">
+            <h1 className="text-[17px] font-bold text-slate-900 leading-tight">
               {dateLabel}
             </h1>
           </div>
@@ -250,7 +397,7 @@ export default function TimeBlockingPage() {
       {/* ── Inbox Drawer ── */}
       <InboxDrawer tasks={inbox} />
 
-      {/* ── AI Modal ── */}
+      {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}
 
       {/* ── Add Task Modal (minimal) ── */}
