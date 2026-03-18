@@ -37,3 +37,17 @@ export function hexToMedium(hex: string, alpha = 0.6): string {
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
+
+/**
+ * タイムライン上の top px + 基準日 → ISO8601
+ * 15分単位に丸める
+ */
+export function topToIso(top: number, baseDate: Date): string {
+  const rawMins = top / PX_PER_MIN + TIMELINE_START_HOUR * 60;
+  const roundedMins = Math.round(rawMins / 15) * 15;
+  const hours = Math.floor(roundedMins / 60);
+  const minutes = roundedMins % 60;
+  const d = new Date(baseDate);
+  d.setHours(hours, minutes, 0, 0);
+  return d.toISOString();
+}

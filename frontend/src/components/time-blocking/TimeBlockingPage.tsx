@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Task } from "./types";
 import { MOCK_TASKS } from "./mock-data";
 import {
@@ -8,6 +8,7 @@ import {
   TIMELINE_START_HOUR,
   TIMELINE_END_HOUR,
   minsToLabel,
+  topToIso,
 } from "./utils";
 import TaskBlock from "./TaskBlock";
 import InboxDrawer from "./InboxDrawer";
@@ -25,13 +26,94 @@ const MOTIVATION_QUOTES = [
   "今日の積み上げが未来になる",
 ];
 
+const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+// ────────────────────────────────────────────
+// ② 週ナビゲーション
+// ────────────────────────────────────────────
+function DateNav({
+  selected,
+  onChange,
+}: {
+  selected: Date;
+  onChange: (d: Date) => void;
+}) {
+  // 選択日を中心に前後3日 = 合計7日
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(selected);
+    d.setDate(d.getDate() - 3 + i);
+    return d;
+  });
+
+  const todayStr = new Date().toDateString();
+
+  return (
+    <div className="flex gap-1 mb-3">
+      {days.map((day, i) => {
+        const isSelected = day.toDateString() === selected.toDateString();
+        const isToday = day.toDateString() === todayStr;
+        const dow = day.getDay();
+        const isSat = dow === 6;
+        const isSun = dow === 0;
+
+        return (
+          <button
+            key={i}
+            onClick={() => onChange(new Date(day))}
+            className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${
+              isSelected
+                ? "bg-indigo-600 shadow-sm"
+                : "hover:bg-slate-100 active:scale-95"
+            }`}
+          >
+            {/* 曜日 */}
+            <span
+              className={`text-[9px] font-semibold mb-0.5 leading-none ${
+                isSelected
+                  ? "text-indigo-200"
+                  : isSat
+                  ? "text-blue-400"
+                  : isSun
+                  ? "text-red-400"
+                  : "text-slate-400"
+              }`}
+            >
+              {DAY_LABELS[dow]}
+            </span>
+            {/* 日付 */}
+            <span
+              className={`text-[14px] font-bold leading-none ${
+                isSelected
+                  ? "text-white"
+                  : isToday
+                  ? "text-indigo-600"
+                  : "text-slate-800"
+              }`}
+            >
+              {day.getDate()}
+            </span>
+            {/* 今日インジケーター */}
+            {isToday && !isSelected && (
+              <div className="w-1 h-1 rounded-full bg-indigo-400 mt-1" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// 現在時刻ライン
+// ────────────────────────────────────────────
 function CurrentTimeLine() {
   const [top, setTop] = useState<number | null>(null);
 
   useEffect(() => {
     const calc = () => {
       const now = new Date();
-      const mins = now.getHours() * 60 + now.getMinutes() - TIMELINE_START_HOUR * 60;
+      const mins =
+        now.getHours() * 60 + now.getMinutes() - TIMELINE_START_HOUR * 60;
       if (mins < 0 || mins > (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60) {
         setTop(null);
       } else {
@@ -58,6 +140,9 @@ function CurrentTimeLine() {
   );
 }
 
+// ────────────────────────────────────────────
+// AIスケジューリング診断モーダル
+// ────────────────────────────────────────────
 function AIModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -110,17 +195,34 @@ function AIModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ────────────────────────────────────────────
+// メインページ
+// ────────────────────────────────────────────
 export default function TimeBlockingPage() {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
   const [showAI, setShowAI] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // D&D中のドロップ位置インジケーター（top px）
+  const [dropIndicator, setDropIndicator] = useState<number | null>(null);
+
   const timelineRef = useRef<HTMLDivElement>(null);
   const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
 
   const scheduled = tasks.filter((t) => t.start_time !== null);
   const inbox = tasks.filter((t) => t.start_time === null);
 
-  const handleAchievementChange = (id: number, value: number) => {
+  // ② 日付変更 → 本来は GET /tasks?date=YYYY-MM-DD を呼ぶ
+  function handleDateChange(d: Date) {
+    setSelectedDate(d);
+    // TODO: TanStack Query の invalidateQueries / refetch に置き換える
+    console.log(
+      "[API] GET /tasks?date=",
+      d.toISOString().slice(0, 10)
+    );
+  }
+
+  // 達成度変更
+  function handleAchievementChange(id: number, value: number) {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
@@ -128,35 +230,85 @@ export default function TimeBlockingPage() {
           : t
       )
     );
-  };
+  }
 
-  const totalHeight = (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
+  // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (!timelineRef.current) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const rawTop = e.clientY - rect.top;
+    // 15分単位に丸めた top を表示
+    const snappedTop = Math.round(rawTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
+    setDropIndicator(snappedTop);
+  }, []);
 
-  const today = new Date();
-  const dateLabel = today.toLocaleDateString("ja-JP", {
+  const handleDragLeave = useCallback(() => {
+    setDropIndicator(null);
+  }, []);
+
+  // ③ D&D: ドロップ → start_time / end_time を計算してオプティミスティック更新
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setDropIndicator(null);
+
+      const taskId = Number(e.dataTransfer.getData("taskId"));
+      if (!taskId || !timelineRef.current) return;
+
+      const rect = timelineRef.current.getBoundingClientRect();
+      const rawTop = e.clientY - rect.top;
+
+      const start = topToIso(rawTop, selectedDate);
+      // デフォルト30分後をend_timeに設定
+      const endDate = new Date(start);
+      endDate.setMinutes(endDate.getMinutes() + 30);
+      const end = endDate.toISOString();
+
+      // オプティミスティック更新: 即座にUIへ反映
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId ? { ...t, start_time: start, end_time: end } : t
+        )
+      );
+
+      // TODO: 本番では TanStack Query の mutation に置き換える
+      // PUT /tasks/:id  { start_time: start, end_time: end }
+      console.log("[API] PUT /tasks/", taskId, { start_time: start, end_time: end });
+    },
+    [selectedDate]
+  );
+
+  const totalHeight =
+    (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
+
+  const dateLabel = selectedDate.toLocaleDateString("ja-JP", {
     month: "long",
     day: "numeric",
     weekday: "short",
   });
 
   return (
-    // スマホ: 1カラム縦積み / PC(lg+): ヘッダー固定 + コンテンツ2カラム
     <div className="min-h-screen bg-slate-50 flex flex-col">
 
-      {/* ── Header（全幅・常時表示） ── */}
-      <div className="bg-white/80 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-4 pb-3">
-        {/* Row 1: date + quote */}
-        <div className="flex items-start justify-between mb-3">
+      {/* ── Header ── */}
+      <div className="bg-white/90 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-3 pb-3">
+
+        {/* Row 1: ② 週ナビゲーション */}
+        <DateNav selected={selectedDate} onChange={handleDateChange} />
+
+        {/* Row 2: 日付ラベル + モチベーション吹き出し */}
+        <div className="flex items-start justify-between mb-2.5">
           <div>
-            <p className="text-[11px] text-slate-400 font-medium leading-none mb-0.5">
+            <p className="text-[10px] text-slate-400 font-medium leading-none mb-0.5">
               タイムブロッキング
             </p>
-            <h1 className="text-[18px] font-bold text-slate-800 leading-tight">
+            <h1 className="text-[17px] font-bold text-slate-900 leading-tight">
               {dateLabel}
             </h1>
           </div>
-          {/* Motivation bubble */}
-          <div className="relative mt-1">
+          <div className="relative mt-0.5">
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[160px]">
               <p className="text-[11px] font-semibold text-indigo-700 leading-snug text-right">
                 {MOTIVATION_QUOTES[quoteIdx.current]}
@@ -166,36 +318,31 @@ export default function TimeBlockingPage() {
           </div>
         </div>
 
-        {/* Row 2: AI button + add button */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowAI(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[12px] font-bold shadow-sm hover:shadow-md active:scale-95 transition-all"
-          >
-            <span className="text-[14px] leading-none">✦</span>
-            AIスケジューリング診断
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[20px] font-light flex items-center justify-center active:scale-95 transition-all"
-            aria-label="タスク追加"
-          >
-            +
-          </button>
-        </div>
+        {/* Row 3: AIボタンのみ（① +ボタン削除） */}
+        <button
+          onClick={() => setShowAI(true)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[12px] font-bold shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+        >
+          <span className="text-[14px] leading-none">✦</span>
+          AIスケジューリング診断
+        </button>
       </div>
 
       {/* ── コンテンツエリア: スマホ=縦積み / PC=2カラム ── */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
-        {/* 左カラム: タイムライン（スマホ全幅 / PC flex-1） */}
+        {/* 左カラム: タイムライン */}
         <div className="flex-1 overflow-y-auto pb-48 lg:pb-4 px-2 pt-2">
+          {/* ③ タイムライン全体をD&Dドロップゾーンに */}
           <div
             ref={timelineRef}
             className="relative"
             style={{ height: totalHeight }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
-            {/* Hour grid lines + labels */}
+            {/* 時間グリッド（正時） */}
             {HOURS.map((h) => {
               const y = (h - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
               return (
@@ -212,7 +359,7 @@ export default function TimeBlockingPage() {
               );
             })}
 
-            {/* Half-hour dashed lines */}
+            {/* 30分グリッド（破線） */}
             {HOURS.slice(0, -1).map((h) => {
               const y = ((h - TIMELINE_START_HOUR) * 60 + 30) * PX_PER_MIN;
               return (
@@ -224,7 +371,20 @@ export default function TimeBlockingPage() {
               );
             })}
 
-            {/* Task blocks */}
+            {/* ③ D&D ドロップ位置インジケーター */}
+            {dropIndicator !== null && (
+              <div
+                className="absolute left-9 right-0 z-30 pointer-events-none"
+                style={{ top: dropIndicator }}
+              >
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                  <div className="flex-1 h-0.5 bg-indigo-400 rounded-full" />
+                </div>
+              </div>
+            )}
+
+            {/* タスクブロック */}
             <div className="absolute left-10 right-0 top-0 bottom-0">
               <CurrentTimeLine />
               {scheduled.map((task) => (
@@ -238,49 +398,15 @@ export default function TimeBlockingPage() {
           </div>
         </div>
 
-        {/* 右カラム: PC専用インボックスサイドバー（スマホでは非表示） */}
+        {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
         <InboxSidebar tasks={inbox} />
-
       </div>
 
-      {/* ── モバイル専用インボックスDrawer（PCでは非表示） ── */}
+      {/* モバイル専用インボックスDrawer（PCでは非表示） */}
       <InboxDrawer tasks={inbox} />
 
-      {/* ── AI Modal ── */}
+      {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}
-
-      {/* ── Add Task Modal ── */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            onClick={() => setShowAddModal(false)}
-          />
-          <div className="relative bg-white rounded-t-2xl w-full max-w-lg p-5 shadow-2xl">
-            <h3 className="font-bold text-[15px] text-slate-800 mb-4">タスクを追加</h3>
-            <input
-              type="text"
-              placeholder="タスク名を入力..."
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 mb-3"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-bold"
-              >
-                追加
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

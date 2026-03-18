@@ -19,6 +19,11 @@ export function sortInbox(tasks: Task[]): Task[] {
 }
 
 export function InboxChip({ task }: { task: Task }) {
+  function handleDragStart(e: React.DragEvent) {
+    // D&D でドロップ先にタスクIDを渡す
+    e.dataTransfer.setData("taskId", String(task.id));
+    e.dataTransfer.effectAllowed = "move";
+  }
   const color = task.category?.color ?? "#94a3b8";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -30,6 +35,7 @@ export function InboxChip({ task }: { task: Task }) {
   return (
     <div
       draggable
+      onDragStart={handleDragStart}
       className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
       style={{
         background: hexToPastel(color, 0.15),
