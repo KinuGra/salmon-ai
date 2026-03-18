@@ -12,6 +12,7 @@ import {
 } from "./utils";
 import TaskBlock from "./TaskBlock";
 import InboxDrawer from "./InboxDrawer";
+import InboxSidebar from "./InboxSidebar";
 
 const HOURS = Array.from(
   { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
@@ -132,18 +133,17 @@ function CurrentTimeLine() {
       style={{ top }}
     >
       <div className="flex items-center">
-        <div className="w-2 h-2 rounded-full bg-red-500 shrink-0 ml-0" />
+        <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
         <div className="flex-1 h-px bg-red-400" />
       </div>
     </div>
   );
 }
 
-function AIModal({
-  onClose,
-}: {
-  onClose: () => void;
-}) {
+// ────────────────────────────────────────────
+// AIスケジューリング診断モーダル
+// ────────────────────────────────────────────
+function AIModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -162,7 +162,6 @@ function AIModal({
             <p className="text-[11px] text-slate-400 mt-0.5">診断中...</p>
           </div>
         </div>
-
         <div className="bg-slate-50 rounded-xl p-3 text-[12px] text-slate-600 leading-relaxed">
           <p className="font-semibold text-slate-700 mb-1.5">診断結果</p>
           <p>
@@ -185,7 +184,6 @@ function AIModal({
             </li>
           </ul>
         </div>
-
         <button
           onClick={onClose}
           className="mt-4 w-full py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 transition-colors"
@@ -208,7 +206,7 @@ export default function TimeBlockingPage() {
   const [dropIndicator, setDropIndicator] = useState<number | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
-  const quoteIdx = useRef(Math.floor(Math.random() * 4));
+  const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
 
   const scheduled = tasks.filter((t) => t.start_time !== null);
   const inbox = tasks.filter((t) => t.start_time === null);
@@ -228,11 +226,7 @@ export default function TimeBlockingPage() {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
-          ? {
-              ...t,
-              achievement_rate: value,
-              is_completed: value === 100,
-            }
+          ? { ...t, achievement_rate: value, is_completed: value === 100 }
           : t
       )
     );
@@ -296,11 +290,16 @@ export default function TimeBlockingPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col" style={{ maxWidth: 480, margin: "0 auto" }}>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+
       {/* ── Header ── */}
-      <div className="bg-white/80 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-4 pb-3">
-        {/* Row 1: date + quote */}
-        <div className="flex items-start justify-between mb-3">
+      <div className="bg-white/90 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-3 pb-3">
+
+        {/* Row 1: ② 週ナビゲーション */}
+        <DateNav selected={selectedDate} onChange={handleDateChange} />
+
+        {/* Row 2: 日付ラベル + モチベーション吹き出し */}
+        <div className="flex items-start justify-between mb-2.5">
           <div>
             <p className="text-[10px] text-slate-400 font-medium leading-none mb-0.5">
               タイムブロッキング
@@ -309,10 +308,8 @@ export default function TimeBlockingPage() {
               {dateLabel}
             </h1>
           </div>
-
-          {/* Motivation bubble */}
-          <div className="relative mt-1">
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[140px]">
+          <div className="relative mt-0.5">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[160px]">
               <p className="text-[11px] font-semibold text-indigo-700 leading-snug text-right">
                 {MOTIVATION_QUOTES[quoteIdx.current]}
               </p>
@@ -321,77 +318,95 @@ export default function TimeBlockingPage() {
           </div>
         </div>
 
-        {/* Row 2: AI button */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowAI(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[12px] font-bold shadow-sm hover:shadow-md active:scale-95 transition-all"
-          >
-            <span className="text-[14px] leading-none">✦</span>
-            AIスケジューリング診断
-          </button>
-        </div>
+        {/* Row 3: AIボタンのみ（① +ボタン削除） */}
+        <button
+          onClick={() => setShowAI(true)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[12px] font-bold shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+        >
+          <span className="text-[14px] leading-none">✦</span>
+          AIスケジューリング診断
+        </button>
       </div>
 
-      {/* ── Timeline ── */}
-      <div className="flex-1 overflow-y-auto pb-48 px-2 pt-2">
-        <div
-          ref={timelineRef}
-          className="relative"
-          style={{ height: totalHeight }}
-        >
-          {/* Hour grid lines + labels */}
-          {HOURS.map((h) => {
-            const mins = (h - TIMELINE_START_HOUR) * 60;
-            const y = mins * PX_PER_MIN;
-            const isHalf = false;
-            return (
+      {/* ── コンテンツエリア: スマホ=縦積み / PC=2カラム ── */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+
+        {/* 左カラム: タイムライン */}
+        <div className="flex-1 overflow-y-auto pb-48 lg:pb-4 px-2 pt-2">
+          {/* ③ タイムライン全体をD&Dドロップゾーンに */}
+          <div
+            ref={timelineRef}
+            className="relative"
+            style={{ height: totalHeight }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {/* 時間グリッド（正時） */}
+            {HOURS.map((h) => {
+              const y = (h - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
+              return (
+                <div
+                  key={h}
+                  className="absolute left-0 right-0 flex items-center pointer-events-none"
+                  style={{ top: y }}
+                >
+                  <span className="text-[10px] text-slate-400 font-medium w-9 shrink-0 text-right pr-2 leading-none select-none">
+                    {minsToLabel(h * 60)}
+                  </span>
+                  <div className="flex-1 border-t border-slate-200" />
+                </div>
+              );
+            })}
+
+            {/* 30分グリッド（破線） */}
+            {HOURS.slice(0, -1).map((h) => {
+              const y = ((h - TIMELINE_START_HOUR) * 60 + 30) * PX_PER_MIN;
+              return (
+                <div
+                  key={`${h}-half`}
+                  className="absolute left-9 right-0 border-t border-slate-100 border-dashed pointer-events-none"
+                  style={{ top: y }}
+                />
+              );
+            })}
+
+            {/* ③ D&D ドロップ位置インジケーター */}
+            {dropIndicator !== null && (
               <div
-                key={h}
-                className="absolute left-0 right-0 flex items-center pointer-events-none"
-                style={{ top: y }}
+                className="absolute left-9 right-0 z-30 pointer-events-none"
+                style={{ top: dropIndicator }}
               >
-                <span className="text-[10px] text-slate-400 font-medium w-9 shrink-0 text-right pr-2 leading-none select-none">
-                  {minsToLabel(h * 60)}
-                </span>
-                <div className="flex-1 border-t border-slate-200" />
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                  <div className="flex-1 h-0.5 bg-indigo-400 rounded-full" />
+                </div>
               </div>
-            );
-          })}
+            )}
 
-          {/* Half-hour dashed lines */}
-          {HOURS.slice(0, -1).map((h) => {
-            const mins = (h - TIMELINE_START_HOUR) * 60 + 30;
-            const y = mins * PX_PER_MIN;
-            return (
-              <div
-                key={`${h}-half`}
-                className="absolute left-9 right-0 border-t border-slate-100 border-dashed pointer-events-none"
-                style={{ top: y }}
-              />
-            );
-          })}
-
-          {/* Task blocks */}
-          <div className="absolute left-10 right-0 top-0 bottom-0">
-            <CurrentTimeLine />
-            {scheduled.map((task) => (
-              <TaskBlock
-                key={task.id}
-                task={task}
-                onAchievementChange={handleAchievementChange}
-              />
-            ))}
+            {/* タスクブロック */}
+            <div className="absolute left-10 right-0 top-0 bottom-0">
+              <CurrentTimeLine />
+              {scheduled.map((task) => (
+                <TaskBlock
+                  key={task.id}
+                  task={task}
+                  onAchievementChange={handleAchievementChange}
+                />
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
+        <InboxSidebar tasks={inbox} />
       </div>
 
-      {/* ── Inbox Drawer ── */}
+      {/* モバイル専用インボックスDrawer（PCでは非表示） */}
       <InboxDrawer tasks={inbox} />
 
       {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}
-
     </div>
   );
 }
