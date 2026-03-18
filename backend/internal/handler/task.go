@@ -136,19 +136,19 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		fields["title"] = *req.Title
 	}
 	if req.Description != nil {
-		fields["description"] = req.Description
+		fields["description"] = *req.Description
 	}
 	if req.Priority != nil {
-		fields["priority"] = req.Priority
+		fields["priority"] = *req.Priority
 	}
 	if req.CategoryID != nil {
-		fields["category_id"] = req.CategoryID
+		fields["category_id"] = *req.CategoryID
 	}
 	if req.EstimatedHours != nil {
-		fields["estimated_hours"] = req.EstimatedHours
+		fields["estimated_hours"] = *req.EstimatedHours
 	}
 	if req.AchievementRate != nil {
-		fields["achievement_rate"] = req.AchievementRate
+		fields["achievement_rate"] = *req.AchievementRate
 	}
 	if req.IsCompleted != nil {
 		fields["is_completed"] = *req.IsCompleted
@@ -160,7 +160,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid due_date format"})
 			return
 		}
-		fields["due_date"] = &t
+		fields["due_date"] = t
 	}
 
 	if req.StartTime != nil {
@@ -169,7 +169,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format"})
 			return
 		}
-		fields["start_time"] = &t
+		fields["start_time"] = t
 	}
 
 	if req.EndTime != nil {
@@ -178,7 +178,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format"})
 			return
 		}
-		fields["end_time"] = &t
+		fields["end_time"] = t
 	}
 
 	task, err := h.svc.UpdateTask(uint(id), userID, fields)

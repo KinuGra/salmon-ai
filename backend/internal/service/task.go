@@ -33,16 +33,16 @@ func (s *TaskService) CreateTask(task *model.Task) error {
 
 func (s *TaskService) UpdateTask(id uint, userID uint, fields map[string]interface{}) (*model.Task, error) {
 	// achievement_rate == 100 → is_completed = true
-	if v, ok := fields["achievement_rate"].(*int); ok && v != nil && *v == 100 {
+	if v, ok := fields["achievement_rate"].(int); ok && v == 100 {
 		fields["is_completed"] = true
 	}
 
 	// start_time + end_time が両方指定された場合は estimated_hours を自動計算
-	start, hasStart := fields["start_time"].(*time.Time)
-	end, hasEnd := fields["end_time"].(*time.Time)
-	if hasStart && hasEnd && start != nil && end != nil {
-		hours := end.Sub(*start).Hours()
-		fields["estimated_hours"] = &hours
+	start, hasStart := fields["start_time"].(time.Time)
+	end, hasEnd := fields["end_time"].(time.Time)
+	if hasStart && hasEnd {
+		hours := end.Sub(start).Hours()
+		fields["estimated_hours"] = hours
 	}
 
 	return s.repo.Update(id, userID, fields)
