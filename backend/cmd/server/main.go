@@ -4,7 +4,10 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/salmon-ai/salmon-ai/internal/handler"
 	"github.com/salmon-ai/salmon-ai/internal/model"
+	"github.com/salmon-ai/salmon-ai/internal/repository"
+	"github.com/salmon-ai/salmon-ai/internal/service"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
@@ -50,11 +53,43 @@ func main() {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
 
+	// Repository
+	taskRepo := repository.NewTaskRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
+	userRepo := repository.NewUserRepository(db)
+
+	// Service
+	taskSvc := service.NewTaskService(taskRepo)
+	categorySvc := service.NewCategoryService(categoryRepo)
+	userSvc := service.NewUserService(userRepo)
+
+	// Handler
+	taskHandler := handler.NewTaskHandler(taskSvc)
+	categoryHandler := handler.NewCategoryHandler(categorySvc)
+	userHandler := handler.NewUserHandler(userSvc)
+
 	r := gin.Default()
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+
+	// Tasks
+	r.GET("/tasks", taskHandler.GetTasks)
+	r.GET("/tasks/unscheduled", taskHandler.GetUnscheduledTasks)
+	r.POST("/tasks", taskHandler.CreateTask)
+	r.PUT("/tasks/:id", taskHandler.UpdateTask)
+	r.DELETE("/tasks/:id", taskHandler.DeleteTask)
+
+	// Categories
+	r.GET("/categories", categoryHandler.GetCategories)
+	r.POST("/categories", categoryHandler.CreateCategory)
+	r.PUT("/categories/:id", categoryHandler.UpdateCategory)
+	r.DELETE("/categories/:id", categoryHandler.DeleteCategory)
+
+	// User
+	r.GET("/user/profile", userHandler.GetProfile)
+	r.PUT("/user/profile", userHandler.UpdateProfile)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)

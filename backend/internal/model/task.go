@@ -5,9 +5,9 @@ import "time"
 type Task struct {
 	Base
 	UserID           uint      `gorm:"index;not null"`
-	User             User      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	User             User      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"-"`
 	CategoryID       *uint
-	Category         *Category `gorm:"foreignKey:CategoryID;constraint:OnDelete:SET NULL"`
+	Category         *Category `gorm:"foreignKey:CategoryID;constraint:OnDelete:SET NULL" json:"-"`
 	Title            string    `gorm:"not null"`
 	Description      *string
 	Priority         *int
