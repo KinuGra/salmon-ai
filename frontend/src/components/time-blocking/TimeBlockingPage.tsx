@@ -321,7 +321,7 @@ export default function TimeBlockingPage() {
           </div>
         </div>
 
-        {/* Row 2: AI button + add button */}
+        {/* Row 2: AI button */}
         <div className="flex gap-2">
           <button
             onClick={() => setShowAI(true)}
@@ -329,14 +329,6 @@ export default function TimeBlockingPage() {
           >
             <span className="text-[14px] leading-none">✦</span>
             AIスケジューリング診断
-          </button>
-
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[20px] font-light flex items-center justify-center active:scale-95 transition-all"
-            aria-label="タスク追加"
-          >
-            +
           </button>
         </div>
       </div>
@@ -400,38 +392,6 @@ export default function TimeBlockingPage() {
       {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}
 
-      {/* ── Add Task Modal (minimal) ── */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            onClick={() => setShowAddModal(false)}
-          />
-          <div className="relative bg-white rounded-t-2xl w-full max-w-sm p-5 shadow-2xl">
-            <h3 className="font-bold text-[15px] text-slate-800 mb-4">タスクを追加</h3>
-            <input
-              type="text"
-              placeholder="タスク名を入力..."
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 mb-3"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-bold"
-              >
-                追加
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
