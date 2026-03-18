@@ -130,21 +130,19 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	task := &model.Task{}
-	task.ID = uint(id)
-	task.UserID = userID
+	fields := map[string]interface{}{
+		"description":      req.Description,
+		"priority":         req.Priority,
+		"category_id":      req.CategoryID,
+		"estimated_hours":  req.EstimatedHours,
+		"achievement_rate": req.AchievementRate,
+	}
 
 	if req.Title != nil {
-		task.Title = *req.Title
+		fields["title"] = *req.Title
 	}
-	task.Description = req.Description
-	task.Priority = req.Priority
-	task.CategoryID = req.CategoryID
-	task.EstimatedHours = req.EstimatedHours
-	task.AchievementRate = req.AchievementRate
-
 	if req.IsCompleted != nil {
-		task.IsCompleted = *req.IsCompleted
+		fields["is_completed"] = *req.IsCompleted
 	}
 
 	if req.DueDate != nil {
@@ -153,7 +151,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid due_date format"})
 			return
 		}
-		task.DueDate = &t
+		fields["due_date"] = &t
 	}
 
 	if req.StartTime != nil {
@@ -162,7 +160,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format"})
 			return
 		}
-		task.StartTime = &t
+		fields["start_time"] = &t
 	}
 
 	if req.EndTime != nil {
@@ -171,15 +169,11 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format"})
 			return
 		}
-		task.EndTime = &t
+		fields["end_time"] = &t
 	}
 
-	// achievement_rate が 100 になったら is_completed を自動で true にする
-	if req.AchievementRate != nil && *req.AchievementRate == 100 {
-		task.IsCompleted = true
-	}
-
-	if err := h.svc.UpdateTask(task); err != nil {
+	task, err := h.svc.UpdateTask(uint(id), userID, fields)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
