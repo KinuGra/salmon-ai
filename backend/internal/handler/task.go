@@ -130,16 +130,25 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	fields := map[string]interface{}{
-		"description":      req.Description,
-		"priority":         req.Priority,
-		"category_id":      req.CategoryID,
-		"estimated_hours":  req.EstimatedHours,
-		"achievement_rate": req.AchievementRate,
-	}
+	fields := map[string]interface{}{}
 
 	if req.Title != nil {
 		fields["title"] = *req.Title
+	}
+	if req.Description != nil {
+		fields["description"] = req.Description
+	}
+	if req.Priority != nil {
+		fields["priority"] = req.Priority
+	}
+	if req.CategoryID != nil {
+		fields["category_id"] = req.CategoryID
+	}
+	if req.EstimatedHours != nil {
+		fields["estimated_hours"] = req.EstimatedHours
+	}
+	if req.AchievementRate != nil {
+		fields["achievement_rate"] = req.AchievementRate
 	}
 	if req.IsCompleted != nil {
 		fields["is_completed"] = *req.IsCompleted

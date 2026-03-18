@@ -53,29 +53,19 @@ func main() {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
 
-	// -------------------------------------------------------
-	// TODO: 以下はTaskRepositoryの動作確認用テストコードです。
-	//       確認が完了したら削除してください。
-	// -------------------------------------------------------
-	taskRepo := repository.NewTaskRepository(db)
-	testTask := &model.Task{
-		UserID: mockUser.ID,
-		Title:  "テストタスク",
+	// TODO: テスト用モックユーザー2。確認後削除してください。
+	var mockUser2 model.User
+	result2 := db.FirstOrCreate(&mockUser2, model.User{
+		Email: "mock2@example.com",
+		Name:  "モックユーザー2",
+	})
+	if result2.Error != nil {
+		log.Fatalf("failed to create mock user2: %v", result2.Error)
 	}
-	if err := taskRepo.Create(testTask); err != nil {
-		log.Printf("create failed: %v", err)
-	} else {
-		log.Printf("task created: id=%d", testTask.ID)
-	}
-	tasks, err := taskRepo.FindByUserID(mockUser.ID)
-	if err != nil {
-		log.Printf("find failed: %v", err)
-	} else {
-		log.Printf("tasks found: %d件", len(tasks))
-	}
-	// -------------------------------------------------------
+	log.Printf("mock user2: id=%d", mockUser2.ID)
 
 	// Repository
+	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	userRepo := repository.NewUserRepository(db)
 
