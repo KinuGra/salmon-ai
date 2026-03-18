@@ -35,6 +35,21 @@ func main() {
 
 	log.Println("database migrated successfully")
 
+	// モックユーザーの作成
+	var mockUser model.User
+	result := db.FirstOrCreate(&mockUser, model.User{
+		Email: "mock@example.com",
+		Name: "モックユーザー",
+	})
+	if result.Error != nil {
+		log.Fatalf("failed to create mock user: %v", result.Error)
+	}
+	if result.RowsAffected == 1 {
+		log.Printf("mock user created: id=%d", mockUser.ID)
+	} else {
+		log.Printf("mock user already exists: id=%d", mockUser.ID)
+	}
+
 	r := gin.Default()
 
 	r.GET("/health", func(c *gin.Context) {
