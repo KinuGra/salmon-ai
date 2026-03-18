@@ -3,243 +3,194 @@
 import { useState } from "react";
 import { Task } from "./types";
 import {
+  PX_PER_MIN,
+  isoToTop,
+  isoToLabel,
   hexToPastel,
   hexToMedium,
-  toMinutes,
-  minsToLabel,
-  PX_PER_MIN,
-  TIMELINE_START_HOUR,
 } from "./utils";
 
 const ACHIEVEMENT_OPTIONS = [0, 30, 70, 100] as const;
-const OFFSET_MINS = TIMELINE_START_HOUR * 60;
-
-function AchievementBadge({
-  value,
-  onChange,
-  color,
-}: {
-  value: number | null;
-  onChange: (v: number) => void;
-  color: string;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border transition-all"
-        style={
-          value !== null
-            ? {
-                background: hexToMedium(color, 0.7),
-                color: "#fff",
-                borderColor: "transparent",
-              }
-            : { background: "rgba(0,0,0,0.06)", color: "#888", borderColor: "transparent" }
-        }
-      >
-        {value !== null ? `${value}%` : "達成度"}
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-6 z-50 bg-white rounded-lg shadow-xl border border-slate-100 p-1 flex gap-1">
-          {ACHIEVEMENT_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              onClick={() => {
-                onChange(opt);
-                setOpen(false);
-              }}
-              className="text-[11px] px-2 py-1 rounded-md hover:bg-slate-100 font-medium transition-colors"
-              style={{ color: opt === value ? color : "#555" }}
-            >
-              {opt}%
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function EstimateInfo({
-  estimated,
-  aiEstimated,
-  color,
-}: {
-  estimated: number | null;
-  aiEstimated: number | null;
-  color: string;
-}) {
-  const [tip, setTip] = useState(false);
-  const diff =
-    estimated !== null && aiEstimated !== null
-      ? Math.abs(estimated - aiEstimated)
-      : 0;
-  const alert = diff >= 1;
-
-  if (!estimated) return null;
-
-  return (
-    <div className="flex items-center gap-0.5 relative">
-      <span
-        className="text-[10px] font-medium"
-        style={{ color: alert ? "#ef4444" : "#888" }}
-      >
-        {estimated}h
-      </span>
-      {alert && (
-        <>
-          <span
-            className="text-[10px] font-bold cursor-pointer select-none"
-            style={{ color: "#ef4444" }}
-            onMouseEnter={() => setTip(true)}
-            onMouseLeave={() => setTip(false)}
-            onTouchStart={() => setTip((p) => !p)}
-          >
-            ！
-          </span>
-          {tip && (
-            <div className="absolute bottom-5 right-0 z-50 bg-slate-800 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg">
-              AI見積もり: {aiEstimated}h
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 
 type Props = {
   task: Task;
-  onAchievementChange: (id: number, v: number) => void;
+  onAchievementChange: (id: number, value: number) => void;
 };
 
 export default function TaskBlock({ task, onAchievementChange }: Props) {
-  const [draggingBottom, setDraggingBottom] = useState(false);
-  const [extraMins, setExtraMins] = useState(0);
+  const [showAiTip, setShowAiTip] = useState(false);
 
   if (!task.start_time || !task.end_time) return null;
 
-  const startMins = toMinutes(task.start_time) - OFFSET_MINS;
-  const rawEndMins = toMinutes(task.end_time) - OFFSET_MINS;
-  const endMins = rawEndMins + extraMins;
-  const durationMins = endMins - startMins;
+  const top = isoToTop(task.start_time);
+  const startLabel = isoToLabel(task.start_time);
+  const endLabel = isoToLabel(task.end_time);
 
-  const top = startMins * PX_PER_MIN;
-  const height = Math.max(durationMins * PX_PER_MIN, 28);
+  const durationMins =
+    (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) /
+    60000;
+  const height = Math.max(durationMins * PX_PER_MIN, 36);
 
   const color = task.category?.color ?? "#94a3b8";
-  const bg = task.is_completed ? hexToPastel(color, 0.07) : hexToPastel(color, 0.22);
-  const borderColor = hexToMedium(color, task.is_completed ? 0.2 : 0.5);
-  const isCompleted = task.is_completed || task.achievement_rate === 100;
+  const bgColor = hexToPastel(color, task.is_completed ? 0.07 : 0.2);
+  const borderColor = hexToMedium(color, task.is_completed ? 0.2 : 0.45);
+  const accentColor = hexToMedium(color, 0.75);
 
-  // Current-time glow check
-  const nowMins = new Date().getHours() * 60 + new Date().getMinutes() - OFFSET_MINS;
-  const isActive = nowMins >= startMins && nowMins < rawEndMins;
+  // ⑥ コントラスト: タイトルは常に slate-900 固定、完了時のみ薄く
+  const titleColor = task.is_completed ? "#94a3b8" : "#0f172a"; // slate-900
+  const metaColor = task.is_completed ? "#cbd5e1" : "#475569"; // slate-600
 
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const startY = e.clientY;
-    const onMove = (me: MouseEvent) => {
-      const delta = Math.round((me.clientY - startY) / PX_PER_MIN / 5) * 5;
-      setExtraMins(Math.max(-durationMins + 15, delta));
-    };
-    const onUp = () => {
-      setDraggingBottom(false);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-    setDraggingBottom(true);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  };
+  // AI見積もりとのズレが0.5h超でアラート
+  const aiDiff =
+    task.estimated_hours != null && task.ai_estimated_hours != null
+      ? Math.abs(task.estimated_hours - task.ai_estimated_hours)
+      : 0;
+  const hasAiAlert = aiDiff > 0.5;
+
+  // 現在進行中ハイライト
+  const now = new Date();
+  const isActive =
+    !task.is_completed &&
+    now >= new Date(task.start_time) &&
+    now <= new Date(task.end_time);
+
+  // ブロックの高さに応じてUIを切り替え
+  const isCompact = height < 52;
 
   return (
     <div
-      className="absolute left-0 right-0 mx-1 rounded-lg border transition-shadow select-none"
+      className="absolute left-0 right-1 rounded-xl overflow-visible transition-all"
       style={{
         top,
         height,
-        background: bg,
-        borderColor,
-        borderWidth: "1px",
+        background: bgColor,
+        border: `1.5px solid ${borderColor}`,
         boxShadow: isActive
-          ? `0 0 0 2px ${hexToMedium(color, 0.4)}, 0 0 12px ${hexToMedium(color, 0.25)}`
+          ? `0 0 0 2px ${hexToMedium(color, 0.35)}, 0 0 14px ${hexToPastel(color, 0.5)}`
           : "0 1px 3px rgba(0,0,0,0.06)",
-        opacity: isCompleted ? 0.65 : 1,
-        cursor: "grab",
-        zIndex: draggingBottom ? 20 : 10,
       }}
     >
-      <div className="flex h-full px-2 py-1 gap-1 overflow-hidden">
-        {/* Left: times */}
-        <div className="flex flex-col justify-between shrink-0 min-w-[34px]">
-          <span className="text-[9px] font-semibold text-slate-500 leading-none">
-            {minsToLabel(startMins + OFFSET_MINS)}
+      <div className="flex h-full px-2 py-1.5 gap-1.5 min-w-0 overflow-hidden">
+
+        {/* 左: 時刻 */}
+        <div className="flex flex-col justify-between shrink-0 w-9">
+          <span className="text-[10px] font-semibold leading-none" style={{ color: metaColor }}>
+            {startLabel}
           </span>
-          {height > 36 && (
-            <span className="text-[9px] font-semibold text-slate-400 leading-none">
-              {minsToLabel(endMins + OFFSET_MINS)}
+          {!isCompact && (
+            <span className="text-[9px] leading-none" style={{ color: metaColor, opacity: 0.7 }}>
+              {endLabel}
             </span>
           )}
         </div>
 
-        {/* Center: title + duration */}
-        <div className="flex-1 flex flex-col justify-center min-w-0 overflow-hidden">
-          <span
-            className="text-[13px] font-bold leading-tight truncate"
+        {/* 中央: タイトル + 所要時間 */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+          <p
+            className="text-[13px] font-bold leading-snug"
             style={{
-              color: isCompleted ? "#94a3b8" : "#1e293b",
-              textDecoration: isCompleted ? "line-through" : "none",
-              textDecorationColor: "#94a3b8",
+              color: titleColor,
+              textDecoration: task.is_completed ? "line-through" : "none",
+              // 長いタイトルはブロック高さが十分ならwrap、小さければ切る
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: isCompact ? 1 : 2,
+              WebkitBoxOrient: "vertical",
             }}
           >
             {task.title}
-          </span>
-          {height > 44 && (
-            <span className="text-[10px] text-slate-400 mt-0.5 leading-none">
-              {Math.round(durationMins / 60 * 10) / 10}h
-              {task.category && (
+          </p>
+
+          {/* ⑤ 見込み時間を大きく */}
+          {!isCompact && (
+            <div className="flex items-center gap-1.5">
+              {task.estimated_hours != null && (
                 <span
-                  className="ml-1.5 px-1 rounded-sm text-[9px] font-medium"
-                  style={{
-                    background: hexToPastel(color, 0.35),
-                    color: hexToMedium(color, 0.9),
-                  }}
+                  className="text-[12px] font-bold leading-none"
+                  style={{ color: hasAiAlert ? "#d97706" : accentColor }}
                 >
-                  {task.category.name}
+                  {task.estimated_hours}h
                 </span>
               )}
-            </span>
+              {hasAiAlert && (
+                <div className="relative">
+                  <button
+                    onMouseEnter={() => setShowAiTip(true)}
+                    onMouseLeave={() => setShowAiTip(false)}
+                    onTouchStart={() => setShowAiTip((p) => !p)}
+                    className="text-[13px] font-extrabold text-amber-500 leading-none hover:text-amber-600 transition-colors"
+                    aria-label="AI見積もりとのズレ"
+                  >
+                    ！
+                  </button>
+                  {showAiTip && (
+                    <div className="absolute bottom-6 left-0 z-50 bg-slate-800 text-white text-[11px] rounded-lg px-2.5 py-2 whitespace-nowrap shadow-xl">
+                      <p className="font-semibold mb-0.5">AI見積もり</p>
+                      <p>{task.ai_estimated_hours}h（差: {aiDiff.toFixed(1)}h）</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Right: achievement + estimate */}
-        <div className="flex flex-col justify-between items-end shrink-0">
-          <AchievementBadge
-            value={task.achievement_rate}
-            onChange={(v) => onAchievementChange(task.id, v)}
-            color={color}
-          />
-          {height > 40 && (
-            <EstimateInfo
-              estimated={task.estimated_hours}
-              aiEstimated={task.ai_estimated_hours}
-              color={color}
-            />
+        {/* 右: ④ 達成度セグメントコントロール */}
+        <div className="flex flex-col justify-start items-end shrink-0 pt-0.5">
+          {isCompact ? (
+            /* コンパクト: 現在値だけ表示、タップでサイクル */
+            <button
+              onClick={() => {
+                const idx = ACHIEVEMENT_OPTIONS.indexOf(
+                  (task.achievement_rate ?? 0) as (typeof ACHIEVEMENT_OPTIONS)[number]
+                );
+                const next = ACHIEVEMENT_OPTIONS[(idx + 1) % ACHIEVEMENT_OPTIONS.length];
+                onAchievementChange(task.id, next);
+              }}
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none"
+              style={{
+                background: accentColor,
+                color: "#fff",
+              }}
+            >
+              {task.achievement_rate ?? 0}%
+            </button>
+          ) : (
+            /* 通常: セグメントコントロール形式 */
+            <div
+              className="flex flex-col gap-0.5"
+              role="group"
+              aria-label="達成度"
+            >
+              {ACHIEVEMENT_OPTIONS.map((opt) => {
+                const active = task.achievement_rate === opt;
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => onAchievementChange(task.id, opt)}
+                    className="text-[10px] font-bold rounded-md px-1.5 py-1 leading-none transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      background: active ? accentColor : hexToPastel(color, 0.25),
+                      color: active ? "#fff" : metaColor,
+                      border: active ? "none" : `1px solid ${borderColor}`,
+                      minWidth: "2rem",
+                    }}
+                  >
+                    {opt}%
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Resize handle */}
+      {/* リサイズハンドル */}
       <div
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-3 flex items-center justify-center cursor-row-resize group"
-        onMouseDown={handleResizeStart}
+        className="absolute bottom-0 left-0 right-0 h-2.5 cursor-row-resize flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+        onMouseDown={(e) => e.preventDefault()}
       >
-        <div className="w-5 h-0.5 rounded-full bg-slate-300 group-hover:bg-slate-500 transition-colors" />
+        <div className="w-8 h-0.5 rounded-full bg-slate-400 opacity-50" />
       </div>
     </div>
   );
