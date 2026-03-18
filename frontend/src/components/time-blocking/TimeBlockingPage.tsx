@@ -11,7 +11,6 @@ import {
 } from "./utils";
 import TaskBlock from "./TaskBlock";
 import InboxDrawer from "./InboxDrawer";
-import InboxSidebar from "./InboxSidebar";
 
 const HOURS = Array.from(
   { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
@@ -51,14 +50,18 @@ function CurrentTimeLine() {
       style={{ top }}
     >
       <div className="flex items-center">
-        <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+        <div className="w-2 h-2 rounded-full bg-red-500 shrink-0 ml-0" />
         <div className="flex-1 h-px bg-red-400" />
       </div>
     </div>
   );
 }
 
-function AIModal({ onClose }: { onClose: () => void }) {
+function AIModal({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -77,6 +80,7 @@ function AIModal({ onClose }: { onClose: () => void }) {
             <p className="text-[11px] text-slate-400 mt-0.5">診断中...</p>
           </div>
         </div>
+
         <div className="bg-slate-50 rounded-xl p-3 text-[12px] text-slate-600 leading-relaxed">
           <p className="font-semibold text-slate-700 mb-1.5">診断結果</p>
           <p>
@@ -99,6 +103,7 @@ function AIModal({ onClose }: { onClose: () => void }) {
             </li>
           </ul>
         </div>
+
         <button
           onClick={onClose}
           className="mt-4 w-full py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 transition-colors"
@@ -115,7 +120,7 @@ export default function TimeBlockingPage() {
   const [showAI, setShowAI] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
-  const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
+  const quoteIdx = useRef(Math.floor(Math.random() * 4));
 
   const scheduled = tasks.filter((t) => t.start_time !== null);
   const inbox = tasks.filter((t) => t.start_time === null);
@@ -124,7 +129,11 @@ export default function TimeBlockingPage() {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
-          ? { ...t, achievement_rate: value, is_completed: value === 100 }
+          ? {
+              ...t,
+              achievement_rate: value,
+              is_completed: value === 100,
+            }
           : t
       )
     );
@@ -140,10 +149,8 @@ export default function TimeBlockingPage() {
   });
 
   return (
-    // スマホ: 1カラム縦積み / PC(lg+): ヘッダー固定 + コンテンツ2カラム
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-
-      {/* ── Header（全幅・常時表示） ── */}
+    <div className="min-h-screen bg-slate-50 flex flex-col" style={{ maxWidth: 480, margin: "0 auto" }}>
+      {/* ── Header ── */}
       <div className="bg-white/80 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-4 pb-3">
         {/* Row 1: date + quote */}
         <div className="flex items-start justify-between mb-3">
@@ -155,9 +162,10 @@ export default function TimeBlockingPage() {
               {dateLabel}
             </h1>
           </div>
+
           {/* Motivation bubble */}
           <div className="relative mt-1">
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[160px]">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[140px]">
               <p className="text-[11px] font-semibold text-indigo-700 leading-snug text-right">
                 {MOTIVATION_QUOTES[quoteIdx.current]}
               </p>
@@ -175,6 +183,7 @@ export default function TimeBlockingPage() {
             <span className="text-[14px] leading-none">✦</span>
             AIスケジューリング診断
           </button>
+
           <button
             onClick={() => setShowAddModal(true)}
             className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[20px] font-light flex items-center justify-center active:scale-95 transition-all"
@@ -185,78 +194,73 @@ export default function TimeBlockingPage() {
         </div>
       </div>
 
-      {/* ── コンテンツエリア: スマホ=縦積み / PC=2カラム ── */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* ── Timeline ── */}
+      <div className="flex-1 overflow-y-auto pb-48 px-2 pt-2">
+        <div
+          ref={timelineRef}
+          className="relative"
+          style={{ height: totalHeight }}
+        >
+          {/* Hour grid lines + labels */}
+          {HOURS.map((h) => {
+            const mins = (h - TIMELINE_START_HOUR) * 60;
+            const y = mins * PX_PER_MIN;
+            const isHalf = false;
+            return (
+              <div
+                key={h}
+                className="absolute left-0 right-0 flex items-center pointer-events-none"
+                style={{ top: y }}
+              >
+                <span className="text-[10px] text-slate-400 font-medium w-9 shrink-0 text-right pr-2 leading-none select-none">
+                  {minsToLabel(h * 60)}
+                </span>
+                <div className="flex-1 border-t border-slate-200" />
+              </div>
+            );
+          })}
 
-        {/* 左カラム: タイムライン（スマホ全幅 / PC flex-1） */}
-        <div className="flex-1 overflow-y-auto pb-48 lg:pb-4 px-2 pt-2">
-          <div
-            ref={timelineRef}
-            className="relative"
-            style={{ height: totalHeight }}
-          >
-            {/* Hour grid lines + labels */}
-            {HOURS.map((h) => {
-              const y = (h - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
-              return (
-                <div
-                  key={h}
-                  className="absolute left-0 right-0 flex items-center pointer-events-none"
-                  style={{ top: y }}
-                >
-                  <span className="text-[10px] text-slate-400 font-medium w-9 shrink-0 text-right pr-2 leading-none select-none">
-                    {minsToLabel(h * 60)}
-                  </span>
-                  <div className="flex-1 border-t border-slate-200" />
-                </div>
-              );
-            })}
+          {/* Half-hour dashed lines */}
+          {HOURS.slice(0, -1).map((h) => {
+            const mins = (h - TIMELINE_START_HOUR) * 60 + 30;
+            const y = mins * PX_PER_MIN;
+            return (
+              <div
+                key={`${h}-half`}
+                className="absolute left-9 right-0 border-t border-slate-100 border-dashed pointer-events-none"
+                style={{ top: y }}
+              />
+            );
+          })}
 
-            {/* Half-hour dashed lines */}
-            {HOURS.slice(0, -1).map((h) => {
-              const y = ((h - TIMELINE_START_HOUR) * 60 + 30) * PX_PER_MIN;
-              return (
-                <div
-                  key={`${h}-half`}
-                  className="absolute left-9 right-0 border-t border-slate-100 border-dashed pointer-events-none"
-                  style={{ top: y }}
-                />
-              );
-            })}
-
-            {/* Task blocks */}
-            <div className="absolute left-10 right-0 top-0 bottom-0">
-              <CurrentTimeLine />
-              {scheduled.map((task) => (
-                <TaskBlock
-                  key={task.id}
-                  task={task}
-                  onAchievementChange={handleAchievementChange}
-                />
-              ))}
-            </div>
+          {/* Task blocks */}
+          <div className="absolute left-10 right-0 top-0 bottom-0">
+            <CurrentTimeLine />
+            {scheduled.map((task) => (
+              <TaskBlock
+                key={task.id}
+                task={task}
+                onAchievementChange={handleAchievementChange}
+              />
+            ))}
           </div>
         </div>
-
-        {/* 右カラム: PC専用インボックスサイドバー（スマホでは非表示） */}
-        <InboxSidebar tasks={inbox} />
-
       </div>
 
-      {/* ── モバイル専用インボックスDrawer（PCでは非表示） ── */}
+      {/* ── Inbox Drawer ── */}
       <InboxDrawer tasks={inbox} />
 
       {/* ── AI Modal ── */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}
 
-      {/* ── Add Task Modal ── */}
+      {/* ── Add Task Modal (minimal) ── */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div
             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
             onClick={() => setShowAddModal(false)}
           />
-          <div className="relative bg-white rounded-t-2xl w-full max-w-lg p-5 shadow-2xl">
+          <div className="relative bg-white rounded-t-2xl w-full max-w-sm p-5 shadow-2xl">
             <h3 className="font-bold text-[15px] text-slate-800 mb-4">タスクを追加</h3>
             <input
               type="text"

@@ -2,7 +2,88 @@
 
 import { useState } from "react";
 import { Task } from "./types";
-import { InboxChip, sortInbox } from "./inbox-shared";
+import { hexToPastel, hexToMedium } from "./utils";
+
+const PRIORITY_LABEL: Record<number, string> = { 1: "高", 2: "中", 3: "低" };
+const PRIORITY_COLOR: Record<number, string> = {
+  1: "#ef4444",
+  2: "#f59e0b",
+  3: "#94a3b8",
+};
+
+function InboxChip({ task }: { task: Task }) {
+  const color = task.category?.color ?? "#94a3b8";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = task.due_date ? new Date(task.due_date) : null;
+  if (due) due.setHours(0, 0, 0, 0);
+  const isOverdue = due && due < today;
+  const isDueToday = due && due.getTime() === today.getTime();
+
+  return (
+    <div
+      draggable
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
+      style={{
+        background: hexToPastel(color, 0.15),
+        borderColor: hexToMedium(color, 0.3),
+      }}
+    >
+      {/* Priority dot */}
+      <span
+        className="w-1.5 h-1.5 rounded-full shrink-0"
+        style={{ background: PRIORITY_COLOR[task.priority] }}
+      />
+
+      {/* Title */}
+      <span className="text-[12px] font-semibold text-slate-700 flex-1 truncate leading-none">
+        {task.title}
+      </span>
+
+      {/* Meta */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {task.estimated_hours && (
+          <span className="text-[10px] text-slate-400">{task.estimated_hours}h</span>
+        )}
+        {task.category && (
+          <span
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{
+              background: hexToPastel(color, 0.3),
+              color: hexToMedium(color, 0.95),
+            }}
+          >
+            {task.category.name}
+          </span>
+        )}
+        {(isOverdue || isDueToday) && (
+          <span
+            className="text-[9px] font-bold"
+            style={{ color: isOverdue ? "#ef4444" : "#f59e0b" }}
+          >
+            {isOverdue ? "期限切" : "今日"}
+          </span>
+        )}
+        <span
+          className="text-[9px] font-bold"
+          style={{ color: PRIORITY_COLOR[task.priority] }}
+        >
+          {PRIORITY_LABEL[task.priority]}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function sortInbox(tasks: Task[]): Task[] {
+  return [...tasks].sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+  });
+}
 
 type Props = { tasks: Task[] };
 
@@ -11,10 +92,13 @@ export default function InboxDrawer({ tasks }: Props) {
   const sorted = sortInbox(tasks);
 
   return (
-    // lg+ では InboxSidebar が代わりに表示されるため、このDrawerは非表示
-    <div className="fixed bottom-0 left-0 right-0 z-30 lg:hidden">
+    <div
+      className="fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 ease-out"
+      style={{ maxWidth: 480, margin: "0 auto" }}
+    >
+      {/* Handle + header */}
       <div
-        className="bg-white/95 backdrop-blur-sm border-t border-slate-200 rounded-t-2xl"
+        className="bg-white/95 backdrop-blur-sm border-t border-slate-200 rounded-t-2xl shadow-2xl"
         style={{ boxShadow: "0 -8px 32px rgba(0,0,0,0.1)" }}
       >
         <button
@@ -35,9 +119,9 @@ export default function InboxDrawer({ tasks }: Props) {
           </div>
         </button>
 
-        {/* Peek row */}
+        {/* Peek row (always visible) */}
         {!expanded && sorted.length > 0 && (
-          <div className="px-4 pb-4 flex gap-2 overflow-x-auto">
+          <div className="px-4 pb-4 flex gap-2 overflow-x-auto scrollbar-none">
             {sorted.slice(0, 4).map((t) => (
               <InboxChip key={t.id} task={t} />
             ))}
