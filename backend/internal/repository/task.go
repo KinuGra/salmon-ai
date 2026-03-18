@@ -18,6 +18,7 @@ func NewTaskRepository(db *gorm.DB) *TaskRepository {
 func (r *TaskRepository) FindByUserID(userID uint) ([]model.Task, error) {
 	var tasks []model.Task
 	err := r.db.
+		Preload("Category").
 		Where("user_id = ?", userID).
 		Order("priority ASC, due_date ASC").
 		Find(&tasks).Error
@@ -30,6 +31,7 @@ func (r *TaskRepository) FindByUserIDAndDate(userID uint, date time.Time) ([]mod
 
 	var tasks []model.Task
 	err := r.db.
+		Preload("Category").
 		Where("user_id = ? AND start_time >= ? AND start_time < ?", userID, start, end).
 		Find(&tasks).Error
 	return tasks, err
@@ -38,6 +40,7 @@ func (r *TaskRepository) FindByUserIDAndDate(userID uint, date time.Time) ([]mod
 func (r *TaskRepository) FindUnscheduled(userID uint) ([]model.Task, error) {
 	var tasks []model.Task
 	err := r.db.
+		Preload("Category").
 		Where("user_id = ? AND start_time IS NULL", userID).
 		Order("priority ASC, due_date ASC").
 		Find(&tasks).Error
