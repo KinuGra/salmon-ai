@@ -77,15 +77,17 @@ func main() {
 
 	// Repository
 	categoryRepo := repository.NewCategoryRepository(db)
+	userRepo := repository.NewUserRepository(db)
 
 	// Service
 	taskSvc := service.NewTaskService(taskRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
+	userSvc := service.NewUserService(userRepo)
 
 	// Handler
 	taskHandler := handler.NewTaskHandler(taskSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
-	userHandler := handler.NewUserHandler(db)
+	userHandler := handler.NewUserHandler(userSvc)
 
 	r := gin.Default()
 

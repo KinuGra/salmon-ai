@@ -4,16 +4,15 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/salmon-ai/salmon-ai/internal/model"
-	"gorm.io/gorm"
+	"github.com/salmon-ai/salmon-ai/internal/service"
 )
 
 type UserHandler struct {
-	db *gorm.DB
+	svc *service.UserService
 }
 
-func NewUserHandler(db *gorm.DB) *UserHandler {
-	return &UserHandler{db: db}
+func NewUserHandler(svc *service.UserService) *UserHandler {
+	return &UserHandler{svc: svc}
 }
 
 type UpdateUserProfileRequest struct {
@@ -25,8 +24,8 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
 	userID := getUserID()
 
-	var user model.User
-	if err := h.db.First(&user, userID).Error; err != nil {
+	user, err := h.svc.GetProfile(userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
@@ -43,20 +42,8 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	var user model.User
-	if err := h.db.First(&user, userID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
-
-	if req.Name != nil {
-		user.Name = *req.Name
-	}
-	if req.UserContext != nil {
-		user.UserContext = req.UserContext
-	}
-
-	if err := h.db.Save(&user).Error; err != nil {
+	user, err := h.svc.UpdateProfile(userID, req.Name, req.UserContext)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
