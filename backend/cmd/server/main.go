@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
@@ -20,6 +21,19 @@ func main() {
 	defer sqlDB.Close()
 
 	log.Println("database connected successfully")
+
+	if err := db.AutoMigrate(
+		&model.User{},
+		&model.Category{},
+		&model.Task{},
+		&model.Reflection{},
+		&model.ReflectionMessage{},
+		&model.Report{},
+	); err != nil {
+		log.Fatalf("failed to migrate database: %v", err)
+	}
+
+	log.Println("database migrated successfully")
 
 	r := gin.Default()
 
