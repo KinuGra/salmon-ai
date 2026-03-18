@@ -53,17 +53,6 @@ func main() {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
 
-	// TODO: テスト用モックユーザー2。確認後削除してください。
-	var mockUser2 model.User
-	result2 := db.FirstOrCreate(&mockUser2, model.User{
-		Email: "mock2@example.com",
-		Name:  "モックユーザー2",
-	})
-	if result2.Error != nil {
-		log.Fatalf("failed to create mock user2: %v", result2.Error)
-	}
-	log.Printf("mock user2: id=%d", mockUser2.ID)
-
 	// Repository
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)

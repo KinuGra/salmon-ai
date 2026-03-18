@@ -44,18 +44,17 @@ func (r *TaskRepository) FindUnscheduled(userID uint) ([]model.Task, error) {
 	return tasks, err
 }
 
-func (r *TaskRepository) FindByID(id uint, userID uint) (*model.Task, error) {
-	var task model.Task
-	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&task).Error
-	return &task, err
-}
-
 func (r *TaskRepository) Create(task *model.Task) error {
 	return r.db.Create(task).Error
 }
 
-func (r *TaskRepository) Update(task *model.Task) error {
-	return r.db.Save(task).Error
+func (r *TaskRepository) Update(id uint, userID uint, fields map[string]interface{}) (*model.Task, error) {
+	if err := r.db.Model(&model.Task{}).Where("id = ? AND user_id = ?", id, userID).Updates(fields).Error; err != nil {
+		return nil, err
+	}
+	var task model.Task
+	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&task).Error
+	return &task, err
 }
 
 func (r *TaskRepository) Delete(id uint, userID uint) error {

@@ -21,8 +21,15 @@ func (s *CategoryService) CreateCategory(category *model.Category) error {
 	return s.repo.Create(category)
 }
 
-func (s *CategoryService) UpdateCategory(category *model.Category) error {
-	return s.repo.Update(category)
+func (s *CategoryService) UpdateCategory(id uint, userID uint, name *string, color *string) (*model.Category, error) {
+	fields := map[string]interface{}{}
+	if name != nil {
+		fields["name"] = *name
+	}
+	if color != nil {
+		fields["color"] = *color
+	}
+	return s.repo.Update(id, userID, fields)
 }
 
 func (s *CategoryService) DeleteCategory(id uint, userID uint) error {

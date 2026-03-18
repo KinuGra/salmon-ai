@@ -23,8 +23,13 @@ func (r *CategoryRepository) Create(category *model.Category) error {
 	return r.db.Create(category).Error
 }
 
-func (r *CategoryRepository) Update(category *model.Category) error {
-	return r.db.Save(category).Error
+func (r *CategoryRepository) Update(id uint, userID uint, fields map[string]interface{}) (*model.Category, error) {
+	if err := r.db.Model(&model.Category{}).Where("id = ? AND user_id = ?", id, userID).Updates(fields).Error; err != nil {
+		return nil, err
+	}
+	var category model.Category
+	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&category).Error
+	return &category, err
 }
 
 func (r *CategoryRepository) Delete(id uint, userID uint) error {

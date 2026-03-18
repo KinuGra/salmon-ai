@@ -9,6 +9,7 @@ import (
 	"github.com/salmon-ai/salmon-ai/internal/service"
 )
 
+
 type CategoryHandler struct {
 	svc *service.CategoryService
 }
@@ -78,18 +79,8 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	category := &model.Category{}
-	category.ID = uint(id)
-	category.UserID = userID
-
-	if req.Name != nil {
-		category.Name = *req.Name
-	}
-	if req.Color != nil {
-		category.Color = *req.Color
-	}
-
-	if err := h.svc.UpdateCategory(category); err != nil {
+	category, err := h.svc.UpdateCategory(uint(id), userID, req.Name, req.Color)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
