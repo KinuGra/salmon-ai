@@ -37,3 +37,7 @@ docker compose up --build
 - Backend: http://localhost:8080/health
 - AI: http://localhost:8000/health
 - DB: localhost:5432
+
+http://localhost:3000/ - トップページ
+http://localhost:3000/tasks - タスクリスト
+http://localhost:3000/time-blocking - タイムブロッキング
