@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Task } from "./types";
-import { MOCK_TASKS } from "./mock-data";
 import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
+
+const API_BASE = "http://localhost:8080";
 
 // ────────────────────────────────────────────
 // 見積もり時間
@@ -373,10 +374,33 @@ function AddTaskModal({
 // メインページ
 // ────────────────────────────────────────────
 export default function TaskListPage() {
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
-  function handleAddTask(task: Task) {
-    // 先頭に追加（本番では POST /tasks → レスポンスをリストに反映）
-    setTasks((prev) => [task, ...prev]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/tasks`)
+      .then((r) => r.json())
+      .then((data) => setTasks(data))
+      .catch((e) => console.error("タスク取得エラー:", e));
+  }, []);
+
+  async function handleAddTask(task: Task) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          estimated_hours: task.estimated_hours,
+          due_date: task.due_date,
+        }),
+      });
+      const created: Task = await res.json();
+      setTasks((prev: Task[]) => [created, ...prev]);
+    } catch (e) {
+      console.error("タスク追加エラー:", e);
+    }
   }
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "done">("active");

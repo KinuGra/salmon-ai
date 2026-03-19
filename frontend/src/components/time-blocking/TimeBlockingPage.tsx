@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Task } from "./types";
-import { MOCK_TASKS } from "./mock-data";
+
+const API_BASE = "http://localhost:8080";
 import {
   PX_PER_MIN,
   TIMELINE_START_HOUR,
@@ -199,7 +200,15 @@ function AIModal({ onClose }: { onClose: () => void }) {
 // メインページ
 // ────────────────────────────────────────────
 export default function TimeBlockingPage() {
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/tasks`)
+      .then((r) => r.json())
+      .then((data: Task[]) => setTasks(data))
+      .catch((e) => console.error("タスク取得エラー:", e));
+  }, []);
+
   const [showAI, setShowAI] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   // D&D中のドロップ位置インジケーター（top px）
@@ -218,12 +227,6 @@ export default function TimeBlockingPage() {
   );
   const inbox = tasks.filter((t) => t.start_time === null);
 
-  // ② 日付変更検知: 本番では GET /tasks?date=YYYY-MM-DD を呼ぶ
-  useEffect(() => {
-    const dateParam = selectedDate.toISOString().slice(0, 10);
-    // TODO: useQuery({ queryKey: ["tasks", dateParam], ... }) に置き換える
-    console.log("[API] GET /tasks?date=", dateParam);
-  }, [selectedDate]);
 
   function handleDateChange(d: Date) {
     setSelectedDate(d);
@@ -231,13 +234,18 @@ export default function TimeBlockingPage() {
 
   // 達成度変更
   function handleAchievementChange(id: number, value: number) {
-    setTasks((prev) =>
-      prev.map((t) =>
+    setTasks((prev: Task[]) =>
+      prev.map((t: Task) =>
         t.id === id
           ? { ...t, achievement_rate: value, is_completed: value === 100 }
           : t
       )
     );
+    fetch(`${API_BASE}/tasks/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ achievement_rate: value }),
+    }).catch((e) => console.error("達成度更新エラー:", e));
   }
 
   // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
@@ -303,15 +311,17 @@ export default function TimeBlockingPage() {
       }
 
       // オプティミスティック更新: 即座にUIへ反映
-      setTasks((prev) =>
-        prev.map((t) =>
+      setTasks((prev: Task[]) =>
+        prev.map((t: Task) =>
           t.id === taskId ? { ...t, start_time: start, end_time: end } : t
         )
       );
 
-      // TODO: 本番では TanStack Query の mutation に置き換える
-      // PUT /tasks/:id  { start_time: start, end_time: end }
-      console.log("[API] PUT /tasks/", taskId, { start_time: start, end_time: end });
+      fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_time: start, end_time: end }),
+      }).catch((e) => console.error("タイムブロック更新エラー:", e));
     },
     [selectedDate, tasks]
   );
@@ -423,7 +433,7 @@ export default function TimeBlockingPage() {
             {/* タスクブロック */}
             <div className="absolute left-10 right-0 top-0 bottom-0">
               <CurrentTimeLine />
-              {scheduled.map((task) => (
+              {scheduled.map((task: Task) => (
                 <TaskBlock
                   key={task.id}
                   task={task}
