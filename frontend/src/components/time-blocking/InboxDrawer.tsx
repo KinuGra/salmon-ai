@@ -92,8 +92,9 @@ export default function InboxDrawer({ tasks }: Props) {
   const sorted = sortInbox(tasks);
 
   return (
+    // lg+ では InboxSidebar が右カラムに表示されるためDrawerは非表示
     <div
-      className="fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 ease-out"
+      className="fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 ease-out lg:hidden"
       style={{ maxWidth: 480, margin: "0 auto" }}
     >
       {/* Handle + header */}

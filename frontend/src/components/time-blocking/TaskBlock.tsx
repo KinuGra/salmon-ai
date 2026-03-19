@@ -70,7 +70,8 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
           : "0 1px 3px rgba(0,0,0,0.06)",
       }}
     >
-      <div className="flex h-full px-2 py-1.5 gap-1.5 min-w-0 overflow-hidden">
+      {/* ── メインコンテンツ行（時刻・タイトル・見込み時間） ── */}
+      <div className="flex flex-1 min-w-0 px-2 pt-1.5 pb-0.5 gap-1.5 overflow-hidden">
 
         {/* 左: 時刻 */}
         <div className="flex flex-col justify-between shrink-0 w-9">
@@ -84,14 +85,13 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
           )}
         </div>
 
-        {/* 中央: タイトル + 所要時間 */}
+        {/* 中央: タイトル + 見込み時間 */}
         <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
           <p
             className="text-[13px] font-bold leading-snug"
             style={{
               color: titleColor,
               textDecoration: task.is_completed ? "line-through" : "none",
-              // 長いタイトルはブロック高さが十分ならwrap、小さければ切る
               overflow: "hidden",
               display: "-webkit-box",
               WebkitLineClamp: isCompact ? 1 : 2,
@@ -101,7 +101,6 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
             {task.title}
           </p>
 
-          {/* ⑤ 見込み時間を大きく */}
           {!isCompact && (
             <div className="flex items-center gap-1.5">
               {task.estimated_hours != null && (
@@ -135,55 +134,53 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
           )}
         </div>
 
-        {/* 右: ④ 達成度セグメントコントロール */}
-        <div className="flex flex-col justify-start items-end shrink-0 pt-0.5">
-          {isCompact ? (
-            /* コンパクト: 現在値だけ表示、タップでサイクル */
-            <button
-              onClick={() => {
-                const idx = ACHIEVEMENT_OPTIONS.indexOf(
-                  (task.achievement_rate ?? 0) as (typeof ACHIEVEMENT_OPTIONS)[number]
-                );
-                const next = ACHIEVEMENT_OPTIONS[(idx + 1) % ACHIEVEMENT_OPTIONS.length];
-                onAchievementChange(task.id, next);
-              }}
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none"
-              style={{
-                background: accentColor,
-                color: "#fff",
-              }}
-            >
-              {task.achievement_rate ?? 0}%
-            </button>
-          ) : (
-            /* 通常: セグメントコントロール形式 */
-            <div
-              className="flex flex-col gap-0.5"
-              role="group"
-              aria-label="達成度"
-            >
-              {ACHIEVEMENT_OPTIONS.map((opt) => {
-                const active = task.achievement_rate === opt;
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => onAchievementChange(task.id, opt)}
-                    className="text-[10px] font-bold rounded-md px-1.5 py-1 leading-none transition-all hover:scale-105 active:scale-95"
-                    style={{
-                      background: active ? accentColor : hexToPastel(color, 0.25),
-                      color: active ? "#fff" : metaColor,
-                      border: active ? "none" : `1px solid ${borderColor}`,
-                      minWidth: "2rem",
-                    }}
-                  >
-                    {opt}%
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        {/* コンパクト時のみ: 右端にサイクルタップボタン */}
+        {isCompact && (
+          <button
+            onClick={() => {
+              const idx = ACHIEVEMENT_OPTIONS.indexOf(
+                (task.achievement_rate ?? 0) as (typeof ACHIEVEMENT_OPTIONS)[number]
+              );
+              const next = ACHIEVEMENT_OPTIONS[(idx + 1) % ACHIEVEMENT_OPTIONS.length];
+              onAchievementChange(task.id, next);
+            }}
+            className="shrink-0 self-center text-[9px] font-bold px-1.5 py-0.5 rounded-md leading-none"
+            style={{ background: accentColor, color: "#fff" }}
+          >
+            {task.achievement_rate ?? 0}%
+          </button>
+        )}
       </div>
+
+      {/* ── ④ 達成度セグメントコントロール（横一列・通常時のみ） ── */}
+      {!isCompact && (
+        // 繋がったボタングループ: rounded-lg + overflow-hidden で端だけ角丸
+        <div
+          className="flex mx-2 mb-1.5 rounded-lg overflow-hidden"
+          role="group"
+          aria-label="達成度"
+          style={{ border: `1px solid ${borderColor}` }}
+        >
+          {ACHIEVEMENT_OPTIONS.map((opt, i) => {
+            const active = task.achievement_rate === opt;
+            return (
+              <button
+                key={opt}
+                onClick={() => onAchievementChange(task.id, opt)}
+                className="flex-1 text-[9px] font-bold py-1 leading-none transition-all active:scale-95"
+                style={{
+                  // セグメント間の区切り線（左端以外）
+                  borderLeft: i > 0 ? `1px solid ${borderColor}` : "none",
+                  background: active ? accentColor : "transparent",
+                  color: active ? "#fff" : metaColor,
+                }}
+              >
+                {opt === 100 ? "✓" : `${opt}%`}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* リサイズハンドル */}
       <div

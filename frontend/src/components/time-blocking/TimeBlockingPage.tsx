@@ -208,17 +208,25 @@ export default function TimeBlockingPage() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
 
-  const scheduled = tasks.filter((t) => t.start_time !== null);
+  // ③ 選択日付でタイムラインのタスクをフィルタリング
+  // 本番では selectedDate を queryKey に含めた TanStack Query に置き換える
+  const selectedDateStr = selectedDate.toDateString();
+  const scheduled = tasks.filter(
+    (t) =>
+      t.start_time !== null &&
+      new Date(t.start_time).toDateString() === selectedDateStr
+  );
   const inbox = tasks.filter((t) => t.start_time === null);
 
-  // ② 日付変更 → 本来は GET /tasks?date=YYYY-MM-DD を呼ぶ
+  // ② 日付変更検知: 本番では GET /tasks?date=YYYY-MM-DD を呼ぶ
+  useEffect(() => {
+    const dateParam = selectedDate.toISOString().slice(0, 10);
+    // TODO: useQuery({ queryKey: ["tasks", dateParam], ... }) に置き換える
+    console.log("[API] GET /tasks?date=", dateParam);
+  }, [selectedDate]);
+
   function handleDateChange(d: Date) {
     setSelectedDate(d);
-    // TODO: TanStack Query の invalidateQueries / refetch に置き換える
-    console.log(
-      "[API] GET /tasks?date=",
-      d.toISOString().slice(0, 10)
-    );
   }
 
   // 達成度変更
