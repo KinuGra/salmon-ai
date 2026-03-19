@@ -256,6 +256,13 @@ export default function TimeBlockingPage() {
     setDropIndicator(null);
   }, []);
 
+  /** start_time (ISO文字列) からデフォルト30分後の end_time を返すヘルパー */
+  function calculateDefaultEndTime(startTime: string): string {
+    const end = new Date(startTime);
+    end.setMinutes(end.getMinutes() + 30);
+    return end.toISOString();
+  }
+
   // ③ D&D: ドロップ → start_time / end_time を計算してオプティミスティック更新
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -287,16 +294,12 @@ export default function TimeBlockingPage() {
           end = new Date(new Date(start).getTime() + durationMs).toISOString();
         } else {
           // フォールバック: 30分
-          const endDate = new Date(start);
-          endDate.setMinutes(endDate.getMinutes() + 30);
-          end = endDate.toISOString();
+          end = calculateDefaultEndTime(start);
         }
       } else {
         // インボックスからのドロップ: デフォルト30分
         start = topToIso(rawTop, selectedDate);
-        const endDate = new Date(start);
-        endDate.setMinutes(endDate.getMinutes() + 30);
-        end = endDate.toISOString();
+        end = calculateDefaultEndTime(start);
       }
 
       // オプティミスティック更新: 即座にUIへ反映
