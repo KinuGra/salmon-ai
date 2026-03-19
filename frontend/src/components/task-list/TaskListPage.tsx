@@ -193,7 +193,6 @@ function AddTaskModal({
             <label className={labelCls}>優先度</label>
             <select
               value={priority}
-              defaultValue="2"
               onChange={(e) => setPriority(e.target.value)}
               className={`${inputCls} bg-white`}
             >
