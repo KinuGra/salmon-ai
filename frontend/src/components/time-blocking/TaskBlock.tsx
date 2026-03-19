@@ -118,15 +118,15 @@ function AiAlertPopover({
         ！
       </button>
 
-      {/* ポップオーバー本体 */}
+      {/* ポップオーバー本体: left-0 top-6 で右下に展開、画面端対策に max-w */}
       {open && (
         <div
-          className="absolute right-0 bottom-7 z-50 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
+          className="absolute left-0 top-6 z-50 w-52 max-w-[min(208px,calc(100vw-2rem))] bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
         >
-          {/* 吹き出し三角（下向き） */}
-          <div className="absolute -bottom-1.5 right-3 w-3 h-3 bg-white border-b border-r border-slate-200 rotate-45" />
+          {/* 吹き出し三角（上向き） */}
+          <div className="absolute -top-1.5 left-3 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45" />
 
           <p className="text-[11px] font-bold text-slate-700 mb-2">AIの見積もり</p>
 
