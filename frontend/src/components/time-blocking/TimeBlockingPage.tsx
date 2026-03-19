@@ -217,8 +217,8 @@ export default function TimeBlockingPage() {
       .then((data: Task[]) => setTasks(data))
       .catch((e) => console.error("タスク取得エラー:", e));
   }, [selectedDate]);
-  // D&D中のドロップ位置インジケーター（top px）
-  const [dropIndicator, setDropIndicator] = useState<number | null>(null);
+  // D&D中のドロップ位置インジケーター（top/bottom px）
+  const [dropIndicator, setDropIndicator] = useState<{ top: number; bottom: number } | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
@@ -269,9 +269,12 @@ export default function TimeBlockingPage() {
     if (!timelineRef.current) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const rawTop = e.clientY - rect.top;
-    // 15分単位に丸めた top を表示
-    const snappedTop = Math.round(rawTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
-    setDropIndicator(snappedTop);
+    const dragInfo = (window as any).__dragInfo ?? { durationMins: 30, grabOffset: 0 };
+    // grabOffset を考慮してブロック上端の位置を計算し、15分単位に丸める
+    const adjustedTop = rawTop - dragInfo.grabOffset;
+    const snappedTop = Math.round(adjustedTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
+    const snappedBottom = snappedTop + dragInfo.durationMins * PX_PER_MIN;
+    setDropIndicator({ top: snappedTop, bottom: snappedBottom });
   }, []);
 
   const handleDragLeave = useCallback(() => {
@@ -472,17 +475,35 @@ export default function TimeBlockingPage() {
               );
             })}
 
-            {/* ③ D&D ドロップ位置インジケーター */}
+            {/* ③ D&D ドロップ位置インジケーター（上端・下端ライン + 半透明エリア） */}
             {dropIndicator !== null && (
-              <div
-                className="absolute left-9 right-0 z-30 pointer-events-none"
-                style={{ top: dropIndicator }}
-              >
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-indigo-400" />
-                  <div className="flex-1 h-0.5 bg-indigo-400 rounded-full" />
+              <>
+                {/* 半透明エリア */}
+                <div
+                  className="absolute left-9 right-0 z-29 pointer-events-none bg-indigo-200/40 rounded-lg"
+                  style={{ top: dropIndicator.top, height: dropIndicator.bottom - dropIndicator.top }}
+                />
+                {/* 上端ライン */}
+                <div
+                  className="absolute left-9 right-0 z-30 pointer-events-none"
+                  style={{ top: dropIndicator.top }}
+                >
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                    <div className="flex-1 h-0.5 bg-indigo-500 rounded-full" />
+                  </div>
                 </div>
-              </div>
+                {/* 下端ライン */}
+                <div
+                  className="absolute left-9 right-0 z-30 pointer-events-none"
+                  style={{ top: dropIndicator.bottom }}
+                >
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                    <div className="flex-1 h-0.5 bg-indigo-500 rounded-full" />
+                  </div>
+                </div>
+              </>
             )}
 
             {/* タスクブロック */}

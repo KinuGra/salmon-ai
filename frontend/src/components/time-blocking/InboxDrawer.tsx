@@ -21,9 +21,17 @@ function InboxChip({ task }: { task: Task }) {
   const isOverdue = due && due < today;
   const isDueToday = due && due.getTime() === today.getTime();
 
+  function handleDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData("taskId", String(task.id));
+    e.dataTransfer.effectAllowed = "move";
+    const durationMins = task.estimated_hours ? Math.round(task.estimated_hours * 60) : 30;
+    (window as any).__dragInfo = { durationMins, grabOffset: 0 };
+  }
+
   return (
     <div
       draggable
+      onDragStart={handleDragStart}
       className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
       style={{
         background: hexToPastel(color, 0.15),

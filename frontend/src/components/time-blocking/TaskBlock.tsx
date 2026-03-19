@@ -241,6 +241,11 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         const grabOffset = Math.round(e.clientY - rect.top);
         e.dataTransfer.setData("grabOffset", String(grabOffset));
         e.dataTransfer.effectAllowed = "move";
+        // dragover 中に dataTransfer.getData が使えないため window に退避
+        const durationMins = task.end_time && task.start_time
+          ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+          : (task.estimated_hours ?? 0.5) * 60;
+        (window as any).__dragInfo = { durationMins: Math.round(durationMins), grabOffset };
         // ghost 画像が capture された後に元ブロックを非表示にする
         setTimeout(() => setIsDragging(true), 0);
       }}
