@@ -38,11 +38,14 @@ func (s *TaskService) UpdateTask(id uint, userID uint, fields map[string]interfa
 	}
 
 	// start_time + end_time が両方指定された場合は estimated_hours を自動計算
+	// ただし estimated_hours が明示的に指定された場合は上書きしない
 	start, hasStart := fields["start_time"].(time.Time)
 	end, hasEnd := fields["end_time"].(time.Time)
 	if hasStart && hasEnd {
-		hours := end.Sub(start).Hours()
-		fields["estimated_hours"] = hours
+		if _, hasEstimated := fields["estimated_hours"]; !hasEstimated {
+			hours := end.Sub(start).Hours()
+			fields["estimated_hours"] = hours
+		}
 	}
 
 	return s.repo.Update(id, userID, fields)

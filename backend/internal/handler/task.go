@@ -19,11 +19,12 @@ func NewTaskHandler(svc *service.TaskService) *TaskHandler {
 }
 
 type CreateTaskRequest struct {
-	Title       string  `json:"title" binding:"required"`
-	Description *string `json:"description"`
-	Priority    *int    `json:"priority"`
-	CategoryID  *uint   `json:"category_id"`
-	DueDate     *string `json:"due_date"`
+	Title          string   `json:"title" binding:"required"`
+	Description    *string  `json:"description"`
+	Priority       *int     `json:"priority"`
+	CategoryID     *uint    `json:"category_id"`
+	DueDate        *string  `json:"due_date"`
+	EstimatedHours *float64 `json:"estimated_hours"`
 }
 
 type UpdateTaskRequest struct {
@@ -92,11 +93,12 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	task := &model.Task{
-		UserID:      userID,
-		Title:       req.Title,
-		Description: req.Description,
-		Priority:    req.Priority,
-		CategoryID:  req.CategoryID,
+		UserID:         userID,
+		Title:          req.Title,
+		Description:    req.Description,
+		Priority:       req.Priority,
+		CategoryID:     req.CategoryID,
+		EstimatedHours: req.EstimatedHours,
 	}
 
 	if req.DueDate != nil {

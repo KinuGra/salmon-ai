@@ -191,15 +191,16 @@ function AiAlertPopover({
 // タスクブロック本体
 // ────────────────────────────────────────────
 export default function TaskBlock({ task, onAchievementChange }: Props) {
-  if (!task.start_time || !task.end_time) return null;
+  if (!task.start_time) return null;
+  if (!task.end_time && task.estimated_hours == null) return null;
 
   const top = isoToTop(task.start_time);
   const startLabel = isoToLabel(task.start_time);
-  const endLabel = isoToLabel(task.end_time);
+  const endLabel = task.end_time ? isoToLabel(task.end_time) : null;
 
-  const durationMins =
-    (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) /
-    60000;
+  const durationMins = task.end_time
+    ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+    : (task.estimated_hours ?? 0) * 60;
   const height = Math.max(durationMins * PX_PER_MIN, 36);
 
   const color = task.category?.color ?? "#94a3b8";
@@ -218,10 +219,13 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
   const isHighAlert = aiDiff !== null && Math.abs(aiDiff) >= 1.5;
 
   const now = new Date();
+  const endTime = task.end_time
+    ? new Date(task.end_time)
+    : new Date(new Date(task.start_time).getTime() + durationMins * 60000);
   const isActive =
     !task.is_completed &&
     now >= new Date(task.start_time) &&
-    now <= new Date(task.end_time);
+    now <= endTime;
 
   const isCompact = height < 52;
 
