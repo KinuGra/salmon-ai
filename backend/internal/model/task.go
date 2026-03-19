@@ -10,7 +10,7 @@ type Task struct {
 	Category         *Category  `gorm:"foreignKey:CategoryID;constraint:OnDelete:SET NULL" json:"category"`
 	Title            string     `gorm:"not null" json:"title"`
 	Description      *string    `json:"description"`
-	Priority         *int       `json:"priority"`
+	Priority         *int       `gorm:"default:2" json:"priority"`
 	IsCompleted      bool       `gorm:"not null;default:false" json:"is_completed"`
 	EstimatedHours   *float64   `json:"estimated_hours"`
 	AiEstimatedHours *float64   `json:"ai_estimated_hours"`
