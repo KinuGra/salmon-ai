@@ -151,12 +151,16 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
 
           {/* ── 見積もり時間 ── */}
           <div>
-            <label className={labelCls}>
-              見積もり時間
-              {durationMins !== null && (
-                <span className="ml-2 text-indigo-600 font-bold">{fmtMins(durationMins)}</span>
-              )}
-            </label>
+            <label className={labelCls}>見積もり時間</label>
+
+            {/* 確定値を大きく表示 */}
+            {durationMins !== null && (
+              <div className="flex items-baseline justify-center gap-1 bg-indigo-50 rounded-xl py-2 mb-2">
+                <span className="text-[28px] font-bold text-indigo-600 leading-none tabular-nums">
+                  {fmtMins(durationMins)}
+                </span>
+              </div>
+            )}
 
             {/* クイック選択チップ */}
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -207,12 +211,19 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
 
           {/* ── 期限 ── */}
           <div>
-            <label className={labelCls}>
-              期限（任意）
-              {dueDate && (
-                <span className="ml-2 text-indigo-600 font-bold">{fmtMD(dueDate)}</span>
-              )}
-            </label>
+            <label className={labelCls}>期限（任意）</label>
+
+            {/* 確定値を大きく表示 */}
+            {dueDate && (
+              <div className="flex items-baseline justify-center gap-1.5 bg-indigo-50 rounded-xl py-2 mb-2">
+                <span className="text-[28px] font-bold text-indigo-600 leading-none tabular-nums">
+                  {fmtMD(dueDate)}
+                </span>
+                <span className="text-[13px] text-indigo-400 font-semibold leading-none pb-0.5">
+                  {dueDate.getFullYear()}年
+                </span>
+              </div>
+            )}
 
             {/* クイック選択 */}
             <div className="flex gap-1.5 mb-2">
