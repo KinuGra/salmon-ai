@@ -244,7 +244,7 @@ export default function TimeBlockingPage() {
     setTasks((prev: Task[]) =>
       prev.map((t: Task) =>
         t.id === id
-          ? { ...t, achievement_rate: value, is_completed: value === 100 }
+          ? { ...t, achievement_rate: value, ...(value === 100 ? { is_completed: true } : {}) }
           : t
       )
     );
