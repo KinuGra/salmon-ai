@@ -59,6 +59,10 @@ func (r *TaskRepository) Update(id uint, userID uint, fields map[string]interfac
 	if err := r.db.Model(&task).Updates(fields).Error; err != nil {
 		return nil, err
 	}
+	// Updates はマップ形式だと struct フィールドを更新しないため、最新状態を再取得する
+	if err := r.db.Preload("Category").First(&task, task.ID).Error; err != nil {
+		return nil, err
+	}
 	return &task, nil
 }
 

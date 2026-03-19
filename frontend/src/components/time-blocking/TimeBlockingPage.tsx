@@ -282,7 +282,7 @@ export default function TimeBlockingPage() {
   function calculateDefaultEndTime(startTime: string): string {
     const end = new Date(startTime);
     end.setMinutes(end.getMinutes() + 30);
-    return end.toISOString();
+    return end.toISOString().slice(0, 19) + "Z";
   }
 
   // ③ D&D: ドロップ → start_time / end_time を計算してオプティミスティック更新
@@ -313,7 +313,7 @@ export default function TimeBlockingPage() {
           const durationMs =
             new Date(existing.end_time).getTime() -
             new Date(existing.start_time).getTime();
-          end = new Date(new Date(start).getTime() + durationMs).toISOString();
+          end = new Date(new Date(start).getTime() + durationMs).toISOString().slice(0, 19) + "Z";
         } else {
           // フォールバック: 30分
           end = calculateDefaultEndTime(start);
@@ -325,7 +325,7 @@ export default function TimeBlockingPage() {
         if (droppedTask?.estimated_hours) {
           const endDate = new Date(start);
           endDate.setMinutes(endDate.getMinutes() + droppedTask.estimated_hours * 60);
-          end = endDate.toISOString();
+          end = endDate.toISOString().slice(0, 19) + "Z";
         } else {
           end = calculateDefaultEndTime(start);
         }
@@ -366,7 +366,7 @@ export default function TimeBlockingPage() {
       const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_time: null, end_time: null }),
+        body: JSON.stringify({ clear_start_time: true, clear_end_time: true }),
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
     } catch (e) {

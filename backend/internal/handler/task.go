@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	"gorm.io/gorm/clause"
 )
 
 type TaskHandler struct {
@@ -35,6 +36,8 @@ type UpdateTaskRequest struct {
 	DueDate         *string  `json:"due_date"`
 	StartTime       *string  `json:"start_time"`
 	EndTime         *string  `json:"end_time"`
+	ClearStartTime  *bool    `json:"clear_start_time"`
+	ClearEndTime    *bool    `json:"clear_end_time"`
 	EstimatedHours  *float64 `json:"estimated_hours"`
 	IsCompleted     *bool    `json:"is_completed"`
 	AchievementRate *int     `json:"achievement_rate"`
@@ -165,20 +168,31 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		fields["due_date"] = t
 	}
 
-	if req.StartTime != nil {
+	if req.ClearStartTime != nil && *req.ClearStartTime {
+		fields["start_time"] = clause.Expr{SQL: "NULL"}
+	} else if req.StartTime != nil {
 		t, err := time.Parse(time.RFC3339, *req.StartTime)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format"})
-			return
+			// ミリ秒付きの ISO 文字列にも対応
+			t, err = time.Parse("2006-01-02T15:04:05.999Z07:00", *req.StartTime)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format"})
+				return
+			}
 		}
 		fields["start_time"] = t
 	}
 
-	if req.EndTime != nil {
+	if req.ClearEndTime != nil && *req.ClearEndTime {
+		fields["end_time"] = clause.Expr{SQL: "NULL"}
+	} else if req.EndTime != nil {
 		t, err := time.Parse(time.RFC3339, *req.EndTime)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format"})
-			return
+			t, err = time.Parse("2006-01-02T15:04:05.999Z07:00", *req.EndTime)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format"})
+				return
+			}
 		}
 		fields["end_time"] = t
 	}
