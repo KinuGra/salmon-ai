@@ -191,6 +191,8 @@ function AiAlertPopover({
 // タスクブロック本体
 // ────────────────────────────────────────────
 export default function TaskBlock({ task, onAchievementChange }: Props) {
+  const [isDragging, setIsDragging] = useState(false);
+
   if (!task.start_time) return null;
   if (!task.end_time && task.estimated_hours == null) return null;
 
@@ -239,7 +241,10 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         const grabOffset = Math.round(e.clientY - rect.top);
         e.dataTransfer.setData("grabOffset", String(grabOffset));
         e.dataTransfer.effectAllowed = "move";
+        // ghost 画像が capture された後に元ブロックを非表示にする
+        setTimeout(() => setIsDragging(true), 0);
       }}
+      onDragEnd={() => setIsDragging(false)}
       className="absolute left-0 right-1 rounded-xl overflow-visible transition-all flex flex-col cursor-grab active:cursor-grabbing"
       style={{
         top,
@@ -249,6 +254,7 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         boxShadow: isActive
           ? `0 0 0 2px ${hexToMedium(color, 0.35)}, 0 0 14px ${hexToPastel(color, 0.5)}`
           : "0 1px 3px rgba(0,0,0,0.06)",
+        opacity: isDragging ? 0 : 1,
       }}
     >
       {/* ── 上段: 時刻・タイトル・セグメント ── */}
