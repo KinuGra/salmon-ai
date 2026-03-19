@@ -201,6 +201,12 @@ function AIModal({ onClose }: { onClose: () => void }) {
 // ────────────────────────────────────────────
 export default function TimeBlockingPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  function showError(msg: string) {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(null), 4000);
+  }
 
   useEffect(() => {
     fetch(`${API_BASE}/tasks`)
@@ -233,7 +239,8 @@ export default function TimeBlockingPage() {
   }
 
   // 達成度変更
-  function handleAchievementChange(id: number, value: number) {
+  async function handleAchievementChange(id: number, value: number) {
+    const originalTasks = tasks;
     setTasks((prev: Task[]) =>
       prev.map((t: Task) =>
         t.id === id
@@ -241,11 +248,18 @@ export default function TimeBlockingPage() {
           : t
       )
     );
-    fetch(`${API_BASE}/tasks/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ achievement_rate: value }),
-    }).catch((e) => console.error("達成度更新エラー:", e));
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ achievement_rate: value }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+    } catch (e) {
+      console.error("達成度更新エラー:", e);
+      setTasks(originalTasks);
+      showError("達成度を更新できませんでした。");
+    }
   }
 
   // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
@@ -318,6 +332,7 @@ export default function TimeBlockingPage() {
       }
 
       // オプティミスティック更新: 即座にUIへ反映
+      const originalTasks = tasks;
       setTasks((prev: Task[]) =>
         prev.map((t: Task) =>
           t.id === taskId ? { ...t, start_time: start, end_time: end } : t
@@ -328,10 +343,38 @@ export default function TimeBlockingPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_time: start, end_time: end }),
-      }).catch((e) => console.error("タイムブロック更新エラー:", e));
+      }).then((res) => {
+        if (!res.ok) throw new Error(`status ${res.status}`);
+      }).catch((e) => {
+        console.error("タイムブロック更新エラー:", e);
+        setTasks(originalTasks);
+        showError("タスクを移動できませんでした。");
+      });
     },
     [selectedDate, tasks]
   );
+
+  // インボックスへ戻す（start_time / end_time を null にする）
+  async function handleReturnToInbox(taskId: number) {
+    const originalTasks = tasks;
+    setTasks((prev: Task[]) =>
+      prev.map((t: Task) =>
+        t.id === taskId ? { ...t, start_time: null, end_time: null } : t
+      )
+    );
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_time: null, end_time: null }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+    } catch (e) {
+      console.error("インボックス戻しエラー:", e);
+      setTasks(originalTasks);
+      showError("タスクをインボックスに戻せませんでした。");
+    }
+  }
 
   const totalHeight =
     (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
@@ -344,6 +387,11 @@ export default function TimeBlockingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {errorMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white text-[12px] font-semibold px-4 py-2 rounded-xl shadow-lg pointer-events-none">
+          {errorMessage}
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="bg-white/90 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-3 pb-3">
@@ -452,11 +500,11 @@ export default function TimeBlockingPage() {
         </div>
 
         {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
-        <InboxSidebar tasks={inbox} />
+        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} />
       </div>
 
       {/* モバイル専用インボックスDrawer（PCでは非表示） */}
-      <InboxDrawer tasks={inbox} />
+      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} />
 
       {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}
