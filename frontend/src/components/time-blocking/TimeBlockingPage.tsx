@@ -265,14 +265,39 @@ export default function TimeBlockingPage() {
       const taskId = Number(e.dataTransfer.getData("taskId"));
       if (!taskId || !timelineRef.current) return;
 
+      const dragType = e.dataTransfer.getData("dragType"); // "scheduled" | ""
       const rect = timelineRef.current.getBoundingClientRect();
       const rawTop = e.clientY - rect.top;
 
-      const start = topToIso(rawTop, selectedDate);
-      // デフォルト30分後をend_timeに設定
-      const endDate = new Date(start);
-      endDate.setMinutes(endDate.getMinutes() + 30);
-      const end = endDate.toISOString();
+      let start: string;
+      let end: string;
+
+      if (dragType === "scheduled") {
+        // タイムライン上のブロックを移動: grabOffset を考慮してブロック上端を計算
+        const grabOffset = Number(e.dataTransfer.getData("grabOffset") || "0");
+        const adjustedTop = rawTop - grabOffset;
+        start = topToIso(adjustedTop, selectedDate);
+
+        // 元のタスクの長さ（ミリ秒）を保持
+        const existing = tasks.find((t) => t.id === taskId);
+        if (existing && existing.start_time && existing.end_time) {
+          const durationMs =
+            new Date(existing.end_time).getTime() -
+            new Date(existing.start_time).getTime();
+          end = new Date(new Date(start).getTime() + durationMs).toISOString();
+        } else {
+          // フォールバック: 30分
+          const endDate = new Date(start);
+          endDate.setMinutes(endDate.getMinutes() + 30);
+          end = endDate.toISOString();
+        }
+      } else {
+        // インボックスからのドロップ: デフォルト30分
+        start = topToIso(rawTop, selectedDate);
+        const endDate = new Date(start);
+        endDate.setMinutes(endDate.getMinutes() + 30);
+        end = endDate.toISOString();
+      }
 
       // オプティミスティック更新: 即座にUIへ反映
       setTasks((prev) =>
@@ -285,7 +310,7 @@ export default function TimeBlockingPage() {
       // PUT /tasks/:id  { start_time: start, end_time: end }
       console.log("[API] PUT /tasks/", taskId, { start_time: start, end_time: end });
     },
-    [selectedDate]
+    [selectedDate, tasks]
   );
 
   const totalHeight =
