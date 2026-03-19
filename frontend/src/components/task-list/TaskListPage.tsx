@@ -49,6 +49,14 @@ function fmtMD(d: Date): string {
 // ────────────────────────────────────────────
 // タスク追加モーダル
 // ────────────────────────────────────────────
+/** ローカル日付を "YYYY-MM-DD" 形式で返す（toISOString はUTC変換で日付がずれるため使わない） */
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function AddTaskModal({
   onClose,
   onAdd,
@@ -143,7 +151,7 @@ function AddTaskModal({
       is_completed: false,
       estimated_hours: durationMins != null ? durationMins / 60 : null,
       ai_estimated_hours: null,
-      due_date: dueDate ? dueDate.toISOString().slice(0, 10) : null,
+      due_date: dueDate ? toLocalDateStr(dueDate) : null,
       category: null,
     };
     onAdd(newTask);
@@ -430,7 +438,7 @@ function EditTaskModal({
 
   function handleSave() {
     if (!title.trim()) return;
-    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority), estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? dueDate.toISOString().slice(0, 10) : null });
+    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority), estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null });
     onClose();
   }
 
