@@ -208,15 +208,15 @@ export default function TimeBlockingPage() {
     setTimeout(() => setErrorMessage(null), 4000);
   }
 
+  const [showAI, setShowAI] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
   useEffect(() => {
     fetch(`${API_BASE}/tasks`)
       .then((r) => r.json())
       .then((data: Task[]) => setTasks(data))
       .catch((e) => console.error("タスク取得エラー:", e));
-  }, []);
-
-  const [showAI, setShowAI] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  }, [selectedDate]);
   // D&D中のドロップ位置インジケーター（top px）
   const [dropIndicator, setDropIndicator] = useState<number | null>(null);
 
