@@ -305,9 +305,16 @@ export default function TimeBlockingPage() {
           end = calculateDefaultEndTime(start);
         }
       } else {
-        // インボックスからのドロップ: デフォルト30分
+        // インボックスからのドロップ: estimated_hours を使って end_time を計算、なければ30分
         start = topToIso(rawTop, selectedDate);
-        end = calculateDefaultEndTime(start);
+        const droppedTask = tasks.find((t: Task) => t.id === taskId);
+        if (droppedTask?.estimated_hours) {
+          const endDate = new Date(start);
+          endDate.setMinutes(endDate.getMinutes() + droppedTask.estimated_hours * 60);
+          end = endDate.toISOString();
+        } else {
+          end = calculateDefaultEndTime(start);
+        }
       }
 
       // オプティミスティック更新: 即座にUIへ反映
