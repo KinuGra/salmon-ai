@@ -32,9 +32,6 @@ function fmtMins(mins: number): string {
 // ────────────────────────────────────────────
 // 期限
 // ────────────────────────────────────────────
-const today = new Date();
-const THIS_YEAR = today.getFullYear();
-
 function addDays(d: Date, n: number): Date {
   const r = new Date(d); r.setDate(r.getDate() + n); return r;
 }
@@ -42,13 +39,6 @@ function addDays(d: Date, n: number): Date {
 function makeDueDate(year: number, month: number, day: number): Date {
   return new Date(year, month - 1, day);
 }
-
-const DUE_QUICK = [
-  { label: "今日",  date: today              },
-  { label: "明日",  date: addDays(today, 1)  },
-  { label: "3日後", date: addDays(today, 3)  },
-  { label: "来週",  date: addDays(today, 7)  },
-];
 
 /** Date → "M/D" 表示（データは年込みで管理、表示はMM/DDのみ） */
 function fmtMD(d: Date): string {
@@ -58,7 +48,26 @@ function fmtMD(d: Date): string {
 // ────────────────────────────────────────────
 // タスク追加モーダル
 // ────────────────────────────────────────────
-function AddTaskModal({ onClose }: { onClose: () => void }) {
+function AddTaskModal({
+  onClose,
+  onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (task: Task) => void;
+}) {
+  // 改善②: モジュール読み込み時ではなくコンポーネント初期化時に "今日" を確定させる
+  const today = new Date();
+  const THIS_YEAR = today.getFullYear();
+  const DUE_QUICK = [
+    { label: "今日",  date: today              },
+    { label: "明日",  date: addDays(today, 1)  },
+    { label: "3日後", date: addDays(today, 3)  },
+    { label: "来週",  date: addDays(today, 7)  },
+  ];
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("2");
   // ── 見積もり ──
   const [selectedMins, setSelectedMins] = useState<number | null>(null);
   // カスタム入力: 時間（整数）と分（0/15/30/45）の2フィールド
@@ -100,7 +109,17 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
     setCustomDay(day);
     const y = parseInt(year), m = parseInt(month), d = parseInt(day);
     if (y && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      setDueDate(makeDueDate(y, m, d));
+      const candidate = makeDueDate(y, m, d);
+      // 改善①: 2/30 → 3/2 のような日付オーバーフローを検出して無効扱いにする
+      if (
+        candidate.getFullYear() === y &&
+        candidate.getMonth() === m - 1 &&
+        candidate.getDate() === d
+      ) {
+        setDueDate(candidate);
+      } else {
+        setDueDate(null);
+      }
     } else {
       setDueDate(null);
     }
@@ -110,6 +129,24 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
     setCustomYear(String(THIS_YEAR));
     setCustomMonth("");
     setCustomDay("");
+  }
+
+  // 追加ボタン処理
+  function handleAdd() {
+    if (!title.trim()) return;
+    const newTask: Task = {
+      id: Date.now(),
+      title: title.trim(),
+      description: description.trim() || null,
+      priority: parseInt(priority),
+      is_completed: false,
+      estimated_hours: durationMins != null ? durationMins / 60 : null,
+      ai_estimated_hours: null,
+      due_date: dueDate ? dueDate.toISOString().slice(0, 10) : null,
+      category: null,
+    };
+    onAdd(newTask);
+    onClose();
   }
 
   const inputCls = "w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition";
@@ -129,20 +166,36 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
           {/* タスク名 */}
           <div>
             <label className={labelCls}>タスク名 <span className="text-red-400">*</span></label>
-            <input type="text" placeholder="タスク名を入力..." autoFocus className={inputCls} />
+            <input
+              type="text"
+              placeholder="タスク名を入力..."
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={`${inputCls} ${!title.trim() ? "" : "border-indigo-300"}`}
+            />
           </div>
 
           {/* 詳細 */}
           <div>
             <label className={labelCls}>詳細（任意）</label>
-            <textarea placeholder="タスクの詳細を入力..." rows={2}
-              className={`${inputCls} resize-none`} />
+            <textarea
+              placeholder="タスクの詳細を入力..."
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={`${inputCls} resize-none`}
+            />
           </div>
 
           {/* 優先度 */}
           <div>
             <label className={labelCls}>優先度</label>
-            <select className={`${inputCls} bg-white`}>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className={`${inputCls} bg-white`}
+            >
               <option value="1">高</option>
               <option value="2">中</option>
               <option value="3">低</option>
@@ -303,8 +356,11 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
             className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold hover:bg-slate-200 transition-colors">
             キャンセル
           </button>
-          <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm">
+          <button
+            onClick={handleAdd}
+            disabled={!title.trim()}
+            className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             追加する
           </button>
         </div>
@@ -317,7 +373,11 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
 // メインページ
 // ────────────────────────────────────────────
 export default function TaskListPage() {
-  const [tasks] = useState<Task[]>(MOCK_TASKS);
+  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  function handleAddTask(task: Task) {
+    // 先頭に追加（本番では POST /tasks → レスポンスをリストに反映）
+    setTasks((prev) => [task, ...prev]);
+  }
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "done">("active");
 
@@ -446,7 +506,9 @@ export default function TaskListPage() {
       </button>
 
       {/* ── タスク追加モーダル ── */}
-      {showAdd && <AddTaskModal onClose={() => setShowAdd(false)} />}
+      {showAdd && (
+        <AddTaskModal onClose={() => setShowAdd(false)} onAdd={handleAddTask} />
+      )}
     </div>
   );
 }
