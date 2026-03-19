@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Task } from "./types";
 import { InboxChip, sortInbox } from "./inbox-shared";
+import { useInboxDropZone } from "./useInboxDropZone";
 
 type Props = {
   tasks: Task[];
@@ -10,26 +10,9 @@ type Props = {
 };
 
 export default function InboxSidebar({ tasks, onReturnToInbox }: Props) {
-  const [isDragOver, setIsDragOver] = useState(false);
+  const { isDragOver, handleDragOver, handleDragLeave, handleDrop } =
+    useInboxDropZone({ onReturnToInbox });
   const sorted = sortInbox(tasks);
-
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault();
-    setIsDragOver(true);
-  }
-
-  function handleDragLeave() {
-    setIsDragOver(false);
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (e.dataTransfer.getData("dragType") !== "scheduled") return;
-    const taskId = Number(e.dataTransfer.getData("taskId"));
-    if (!taskId) return;
-    onReturnToInbox(taskId);
-  }
 
   return (
     // hidden on mobile, visible as a fixed-width column on lg+

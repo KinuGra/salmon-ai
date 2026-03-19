@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Task } from "./types";
 import { hexToPastel, hexToMedium } from "./utils";
+import { useInboxDropZone } from "./useInboxDropZone";
 
 const PRIORITY_LABEL: Record<number, string> = { 1: "高", 2: "中", 3: "低" };
 const PRIORITY_COLOR: Record<number, string> = {
@@ -92,26 +93,9 @@ type Props = {
 
 export default function InboxDrawer({ tasks, onReturnToInbox }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const { isDragOver, handleDragOver, handleDragLeave, handleDrop } =
+    useInboxDropZone({ onReturnToInbox });
   const sorted = sortInbox(tasks);
-
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault();
-    setIsDragOver(true);
-  }
-
-  function handleDragLeave() {
-    setIsDragOver(false);
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (e.dataTransfer.getData("dragType") !== "scheduled") return;
-    const taskId = Number(e.dataTransfer.getData("taskId"));
-    if (!taskId) return;
-    onReturnToInbox(taskId);
-  }
 
   return (
     // lg+ では InboxSidebar が右カラムに表示されるためDrawerは非表示
