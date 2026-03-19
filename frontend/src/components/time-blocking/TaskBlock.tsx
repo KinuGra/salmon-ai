@@ -234,9 +234,7 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("taskId", String(task.id));
-        // タイムライン上のタスクであることを示す（インボックスのD&Dと区別）
         e.dataTransfer.setData("dragType", "scheduled");
-        // ブロック内のどこを掴んだか（Y方向オフセット）を渡す
         const rect = e.currentTarget.getBoundingClientRect();
         const grabOffset = Math.round(e.clientY - rect.top);
         e.dataTransfer.setData("grabOffset", String(grabOffset));

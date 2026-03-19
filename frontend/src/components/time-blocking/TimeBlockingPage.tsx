@@ -333,6 +333,20 @@ export default function TimeBlockingPage() {
     [selectedDate, tasks]
   );
 
+  // インボックスへ戻す（start_time / end_time を null にする）
+  function handleReturnToInbox(taskId: number) {
+    setTasks((prev: Task[]) =>
+      prev.map((t: Task) =>
+        t.id === taskId ? { ...t, start_time: null, end_time: null } : t
+      )
+    );
+    fetch(`${API_BASE}/tasks/${taskId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ start_time: null, end_time: null }),
+    }).catch((e) => console.error("インボックス戻しエラー:", e));
+  }
+
   const totalHeight =
     (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
 
@@ -452,11 +466,11 @@ export default function TimeBlockingPage() {
         </div>
 
         {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
-        <InboxSidebar tasks={inbox} />
+        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} />
       </div>
 
       {/* モバイル専用インボックスDrawer（PCでは非表示） */}
-      <InboxDrawer tasks={inbox} />
+      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} />
 
       {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}

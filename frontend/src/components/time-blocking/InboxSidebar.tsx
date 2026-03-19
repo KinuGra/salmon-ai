@@ -1,16 +1,46 @@
 "use client";
 
+import { useState } from "react";
 import { Task } from "./types";
 import { InboxChip, sortInbox } from "./inbox-shared";
 
-type Props = { tasks: Task[] };
+type Props = {
+  tasks: Task[];
+  onReturnToInbox: (taskId: number) => void;
+};
 
-export default function InboxSidebar({ tasks }: Props) {
+export default function InboxSidebar({ tasks, onReturnToInbox }: Props) {
+  const [isDragOver, setIsDragOver] = useState(false);
   const sorted = sortInbox(tasks);
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave() {
+    setIsDragOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.getData("dragType") !== "scheduled") return;
+    const taskId = Number(e.dataTransfer.getData("taskId"));
+    if (!taskId) return;
+    onReturnToInbox(taskId);
+  }
 
   return (
     // hidden on mobile, visible as a fixed-width column on lg+
-    <aside className="hidden lg:flex flex-col w-80 shrink-0 border-l border-slate-200 bg-white">
+    <aside
+      className={`hidden lg:flex flex-col w-80 shrink-0 border-l border-slate-200 bg-white transition-colors ${
+        isDragOver ? "bg-indigo-50 border-indigo-300" : ""
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
         <span className="text-[13px] font-bold text-slate-700">インボックス</span>
@@ -22,7 +52,12 @@ export default function InboxSidebar({ tasks }: Props) {
 
       {/* Task list */}
       <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
-        {sorted.length === 0 ? (
+        {isDragOver && (
+          <div className="border-2 border-dashed border-indigo-300 rounded-xl py-4 text-center text-[11px] text-indigo-400 font-semibold">
+            ここにドロップしてインボックスへ戻す
+          </div>
+        )}
+        {sorted.length === 0 && !isDragOver ? (
           <p className="text-center text-slate-400 text-[12px] py-8">
             未配置のタスクはありません
           </p>
@@ -34,7 +69,7 @@ export default function InboxSidebar({ tasks }: Props) {
       {/* Footer hint */}
       <div className="px-4 py-2 border-t border-slate-100">
         <p className="text-[10px] text-slate-300 text-center">
-          ドラッグしてタイムラインに配置
+          ドラッグしてタイムラインに配置 / インボックスに戻す
         </p>
       </div>
     </aside>

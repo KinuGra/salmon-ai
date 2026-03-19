@@ -85,21 +85,50 @@ function sortInbox(tasks: Task[]): Task[] {
   });
 }
 
-type Props = { tasks: Task[] };
+type Props = {
+  tasks: Task[];
+  onReturnToInbox: (taskId: number) => void;
+};
 
-export default function InboxDrawer({ tasks }: Props) {
+export default function InboxDrawer({ tasks, onReturnToInbox }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const sorted = sortInbox(tasks);
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave() {
+    setIsDragOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.getData("dragType") !== "scheduled") return;
+    const taskId = Number(e.dataTransfer.getData("taskId"));
+    if (!taskId) return;
+    onReturnToInbox(taskId);
+  }
 
   return (
     // lg+ では InboxSidebar が右カラムに表示されるためDrawerは非表示
     <div
       className="fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 ease-out lg:hidden"
       style={{ maxWidth: 480, margin: "0 auto" }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       {/* Handle + header */}
       <div
-        className="bg-white/95 backdrop-blur-sm border-t border-slate-200 rounded-t-2xl shadow-2xl"
+        className={`backdrop-blur-sm border-t rounded-t-2xl shadow-2xl transition-colors ${
+          isDragOver
+            ? "bg-indigo-50/95 border-indigo-300"
+            : "bg-white/95 border-slate-200"
+        }`}
         style={{ boxShadow: "0 -8px 32px rgba(0,0,0,0.1)" }}
       >
         <button
