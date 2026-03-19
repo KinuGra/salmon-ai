@@ -219,13 +219,12 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
   const isHighAlert = aiDiff !== null && Math.abs(aiDiff) >= 1.5;
 
   const now = new Date();
+  const startTime = new Date(task.start_time);
   const endTime = task.end_time
     ? new Date(task.end_time)
-    : new Date(new Date(task.start_time).getTime() + durationMins * 60000);
+    : new Date(startTime.getTime() + durationMins * 60000);
   const isActive =
-    !task.is_completed &&
-    now >= new Date(task.start_time) &&
-    now <= endTime;
+    !task.is_completed && now >= startTime && now <= endTime;
 
   const isCompact = height < 52;
 
