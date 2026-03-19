@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Task } from "./types";
 import {
   PX_PER_MIN,
@@ -17,9 +17,180 @@ type Props = {
   onAchievementChange: (id: number, value: number) => void;
 };
 
-export default function TaskBlock({ task, onAchievementChange }: Props) {
-  const [showAiTip, setShowAiTip] = useState(false);
+// ────────────────────────────────────────────
+// 達成度セグメントコントロール（常に横並び・コンパクト固定）
+// ────────────────────────────────────────────
+function AchievementSegment({
+  taskId,
+  value,
+  borderColor,
+  accentColor,
+  metaColor,
+  onChange,
+}: {
+  taskId: number;
+  value: number | null;
+  borderColor: string;
+  accentColor: string;
+  metaColor: string;
+  onChange: (id: number, v: number) => void;
+}) {
+  return (
+    // rounded-md + overflow-hidden で両端だけ角丸になる繋がったボタン群
+    <div
+      className="flex rounded-md overflow-hidden shrink-0"
+      role="group"
+      aria-label="達成度"
+      style={{ border: `1px solid ${borderColor}` }}
+    >
+      {ACHIEVEMENT_OPTIONS.map((opt, i) => {
+        const active = value === opt;
+        return (
+          <button
+            key={opt}
+            onClick={() => onChange(taskId, opt)}
+            className="text-[8px] font-bold px-1.5 py-0.5 leading-none transition-colors active:scale-95"
+            style={{
+              borderLeft: i > 0 ? `1px solid ${borderColor}` : "none",
+              background: active ? accentColor : "transparent",
+              color: active ? "#fff" : metaColor,
+            }}
+          >
+            {/* 100% は ✓ に省略してスペースを節約 */}
+            {opt === 100 ? "✓" : opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
+// ────────────────────────────────────────────
+// AIアラートポップオーバー（TaskListItem と同じUI）
+// ────────────────────────────────────────────
+function AiAlertPopover({
+  task,
+  aiDiff,
+  isHighAlert,
+}: {
+  task: Task;
+  aiDiff: number; // 符号付き: ai - estimated
+  isHighAlert: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // 外クリックで閉じる
+  useEffect(() => {
+    if (!open) return;
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [open]);
+
+  async function handleRetry() {
+    setRetrying(true);
+    console.log(`[API] POST /ai/estimate/${task.id}/retry`);
+    await new Promise((r) => setTimeout(r, 1200));
+    setRetrying(false);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      {/* トリガーボタン */}
+      <button
+        onClick={() => setOpen((p) => !p)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className={`text-[10px] font-extrabold px-1 py-0.5 rounded leading-none transition-all hover:scale-105 active:scale-95 ${
+          isHighAlert
+            ? "text-red-600 bg-red-50 hover:bg-red-100"
+            : "text-amber-600 bg-amber-50 hover:bg-amber-100"
+        }`}
+        aria-label="AI見積もりとの乖離を確認"
+      >
+        ！
+      </button>
+
+      {/* ポップオーバー本体: left-0 top-6 で右下に展開、画面端対策に max-w */}
+      {open && (
+        <div
+          className="absolute left-0 top-6 z-50 w-52 max-w-[min(208px,calc(100vw-2rem))] bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
+          {/* 吹き出し三角（上向き） */}
+          <div className="absolute -top-1.5 left-3 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45" />
+
+          <p className="text-[11px] font-bold text-slate-700 mb-2">AIの見積もり</p>
+
+          {/* あなた vs AI 比較 */}
+          <div className="flex items-end justify-between mb-3">
+            <div className="text-center">
+              <p className="text-[9px] text-slate-400 mb-0.5">あなた</p>
+              <p className="text-[18px] font-bold text-slate-800 leading-none tabular-nums">
+                {task.estimated_hours}
+                <span className="text-[10px] ml-0.5">h</span>
+              </p>
+            </div>
+            <div
+              className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                aiDiff > 0 ? "text-amber-700 bg-amber-50" : "text-blue-700 bg-blue-50"
+              }`}
+            >
+              {aiDiff > 0 ? "+" : ""}
+              {aiDiff.toFixed(1)}h
+            </div>
+            <div className="text-center">
+              <p className="text-[9px] text-slate-400 mb-0.5">AI</p>
+              <p
+                className={`text-[18px] font-bold leading-none tabular-nums ${
+                  isHighAlert ? "text-red-500" : "text-amber-500"
+                }`}
+              >
+                {task.ai_estimated_hours}
+                <span className="text-[10px] ml-0.5">h</span>
+              </p>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
+            {isHighAlert
+              ? "大幅な乖離があります。見積もりの見直しを推奨します。"
+              : "やや差があります。余裕を持った計画を検討してください。"}
+          </p>
+
+          {/* 再見積もりボタン */}
+          <button
+            onClick={handleRetry}
+            disabled={retrying}
+            className="w-full py-2 rounded-xl text-[11px] font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+          >
+            {retrying ? (
+              <>
+                <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                再見積もり中...
+              </>
+            ) : (
+              "✦ 再見積もり"
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// タスクブロック本体
+// ────────────────────────────────────────────
+export default function TaskBlock({ task, onAchievementChange }: Props) {
   if (!task.start_time || !task.end_time) return null;
 
   const top = isoToTop(task.start_time);
@@ -35,31 +206,40 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
   const bgColor = hexToPastel(color, task.is_completed ? 0.07 : 0.2);
   const borderColor = hexToMedium(color, task.is_completed ? 0.2 : 0.45);
   const accentColor = hexToMedium(color, 0.75);
+  const titleColor = task.is_completed ? "#94a3b8" : "#0f172a";
+  const metaColor = task.is_completed ? "#cbd5e1" : "#475569";
 
-  // ⑥ コントラスト: タイトルは常に slate-900 固定、完了時のみ薄く
-  const titleColor = task.is_completed ? "#94a3b8" : "#0f172a"; // slate-900
-  const metaColor = task.is_completed ? "#cbd5e1" : "#475569"; // slate-600
-
-  // AI見積もりとのズレが0.5h超でアラート
+  // 符号付きの差分（TaskListItem と同じ計算）
   const aiDiff =
     task.estimated_hours != null && task.ai_estimated_hours != null
-      ? Math.abs(task.estimated_hours - task.ai_estimated_hours)
-      : 0;
-  const hasAiAlert = aiDiff > 0.5;
+      ? task.ai_estimated_hours - task.estimated_hours
+      : null;
+  const hasAiAlert = aiDiff !== null && Math.abs(aiDiff) > 0.5;
+  const isHighAlert = aiDiff !== null && Math.abs(aiDiff) >= 1.5;
 
-  // 現在進行中ハイライト
   const now = new Date();
   const isActive =
     !task.is_completed &&
     now >= new Date(task.start_time) &&
     now <= new Date(task.end_time);
 
-  // ブロックの高さに応じてUIを切り替え
   const isCompact = height < 52;
 
   return (
     <div
-      className="absolute left-0 right-1 rounded-xl overflow-visible transition-all"
+      // flex-col にして内部の行を縦積みで管理
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("taskId", String(task.id));
+        // タイムライン上のタスクであることを示す（インボックスのD&Dと区別）
+        e.dataTransfer.setData("dragType", "scheduled");
+        // ブロック内のどこを掴んだか（Y方向オフセット）を渡す
+        const rect = e.currentTarget.getBoundingClientRect();
+        const grabOffset = Math.round(e.clientY - rect.top);
+        e.dataTransfer.setData("grabOffset", String(grabOffset));
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      className="absolute left-0 right-1 rounded-xl overflow-visible transition-all flex flex-col cursor-grab active:cursor-grabbing"
       style={{
         top,
         height,
@@ -70,10 +250,11 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
           : "0 1px 3px rgba(0,0,0,0.06)",
       }}
     >
-      <div className="flex h-full px-2 py-1.5 gap-1.5 min-w-0 overflow-hidden">
+      {/* ── 上段: 時刻・タイトル・セグメント ── */}
+      <div className="flex items-start min-w-0 px-2 pt-1.5 gap-1.5">
 
         {/* 左: 時刻 */}
-        <div className="flex flex-col justify-between shrink-0 w-9">
+        <div className="flex flex-col shrink-0 w-9 gap-0.5">
           <span className="text-[10px] font-semibold leading-none" style={{ color: metaColor }}>
             {startLabel}
           </span>
@@ -84,14 +265,13 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
           )}
         </div>
 
-        {/* 中央: タイトル + 所要時間 */}
-        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+        {/* 中央: タイトル */}
+        <div className="flex-1 min-w-0">
           <p
-            className="text-[13px] font-bold leading-snug"
+            className="text-[12px] font-bold leading-snug"
             style={{
               color: titleColor,
               textDecoration: task.is_completed ? "line-through" : "none",
-              // 長いタイトルはブロック高さが十分ならwrap、小さければ切る
               overflow: "hidden",
               display: "-webkit-box",
               WebkitLineClamp: isCompact ? 1 : 2,
@@ -100,90 +280,39 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
           >
             {task.title}
           </p>
-
-          {/* ⑤ 見込み時間を大きく */}
-          {!isCompact && (
-            <div className="flex items-center gap-1.5">
-              {task.estimated_hours != null && (
-                <span
-                  className="text-[12px] font-bold leading-none"
-                  style={{ color: hasAiAlert ? "#d97706" : accentColor }}
-                >
-                  {task.estimated_hours}h
-                </span>
-              )}
-              {hasAiAlert && (
-                <div className="relative">
-                  <button
-                    onMouseEnter={() => setShowAiTip(true)}
-                    onMouseLeave={() => setShowAiTip(false)}
-                    onTouchStart={() => setShowAiTip((p) => !p)}
-                    className="text-[13px] font-extrabold text-amber-500 leading-none hover:text-amber-600 transition-colors"
-                    aria-label="AI見積もりとのズレ"
-                  >
-                    ！
-                  </button>
-                  {showAiTip && (
-                    <div className="absolute bottom-6 left-0 z-50 bg-slate-800 text-white text-[11px] rounded-lg px-2.5 py-2 whitespace-nowrap shadow-xl">
-                      <p className="font-semibold mb-0.5">AI見積もり</p>
-                      <p>{task.ai_estimated_hours}h（差: {aiDiff.toFixed(1)}h）</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* 右: ④ 達成度セグメントコントロール */}
-        <div className="flex flex-col justify-start items-end shrink-0 pt-0.5">
-          {isCompact ? (
-            /* コンパクト: 現在値だけ表示、タップでサイクル */
-            <button
-              onClick={() => {
-                const idx = ACHIEVEMENT_OPTIONS.indexOf(
-                  (task.achievement_rate ?? 0) as (typeof ACHIEVEMENT_OPTIONS)[number]
-                );
-                const next = ACHIEVEMENT_OPTIONS[(idx + 1) % ACHIEVEMENT_OPTIONS.length];
-                onAchievementChange(task.id, next);
-              }}
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none"
-              style={{
-                background: accentColor,
-                color: "#fff",
-              }}
-            >
-              {task.achievement_rate ?? 0}%
-            </button>
-          ) : (
-            /* 通常: セグメントコントロール形式 */
-            <div
-              className="flex flex-col gap-0.5"
-              role="group"
-              aria-label="達成度"
-            >
-              {ACHIEVEMENT_OPTIONS.map((opt) => {
-                const active = task.achievement_rate === opt;
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => onAchievementChange(task.id, opt)}
-                    className="text-[10px] font-bold rounded-md px-1.5 py-1 leading-none transition-all hover:scale-105 active:scale-95"
-                    style={{
-                      background: active ? accentColor : hexToPastel(color, 0.25),
-                      color: active ? "#fff" : metaColor,
-                      border: active ? "none" : `1px solid ${borderColor}`,
-                      minWidth: "2rem",
-                    }}
-                  >
-                    {opt}%
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        {/* 右: 達成度セグメントコントロール（常に表示・コンパクト固定） */}
+        <AchievementSegment
+          taskId={task.id}
+          value={task.achievement_rate}
+          borderColor={borderColor}
+          accentColor={accentColor}
+          metaColor={metaColor}
+          onChange={onAchievementChange}
+        />
       </div>
+
+      {/* ── 下段: 見込み時間 + AIアラート（通常ブロックのみ） ── */}
+      {!isCompact && (
+        <div className="flex items-center gap-1.5 px-2 pb-1 mt-0.5">
+          {task.estimated_hours != null && (
+            <span
+              className="text-[11px] font-bold leading-none"
+              style={{ color: hasAiAlert ? "#d97706" : accentColor }}
+            >
+              {task.estimated_hours}h
+            </span>
+          )}
+          {hasAiAlert && aiDiff !== null && (
+            <AiAlertPopover
+              task={task}
+              aiDiff={aiDiff}
+              isHighAlert={isHighAlert}
+            />
+          )}
+        </div>
+      )}
 
       {/* リサイズハンドル */}
       <div

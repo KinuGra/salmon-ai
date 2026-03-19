@@ -208,17 +208,25 @@ export default function TimeBlockingPage() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
 
-  const scheduled = tasks.filter((t) => t.start_time !== null);
+  // ③ 選択日付でタイムラインのタスクをフィルタリング
+  // 本番では selectedDate を queryKey に含めた TanStack Query に置き換える
+  const selectedDateStr = selectedDate.toDateString();
+  const scheduled = tasks.filter(
+    (t) =>
+      t.start_time !== null &&
+      new Date(t.start_time).toDateString() === selectedDateStr
+  );
   const inbox = tasks.filter((t) => t.start_time === null);
 
-  // ② 日付変更 → 本来は GET /tasks?date=YYYY-MM-DD を呼ぶ
+  // ② 日付変更検知: 本番では GET /tasks?date=YYYY-MM-DD を呼ぶ
+  useEffect(() => {
+    const dateParam = selectedDate.toISOString().slice(0, 10);
+    // TODO: useQuery({ queryKey: ["tasks", dateParam], ... }) に置き換える
+    console.log("[API] GET /tasks?date=", dateParam);
+  }, [selectedDate]);
+
   function handleDateChange(d: Date) {
     setSelectedDate(d);
-    // TODO: TanStack Query の invalidateQueries / refetch に置き換える
-    console.log(
-      "[API] GET /tasks?date=",
-      d.toISOString().slice(0, 10)
-    );
   }
 
   // 達成度変更
@@ -248,6 +256,13 @@ export default function TimeBlockingPage() {
     setDropIndicator(null);
   }, []);
 
+  /** start_time (ISO文字列) からデフォルト30分後の end_time を返すヘルパー */
+  function calculateDefaultEndTime(startTime: string): string {
+    const end = new Date(startTime);
+    end.setMinutes(end.getMinutes() + 30);
+    return end.toISOString();
+  }
+
   // ③ D&D: ドロップ → start_time / end_time を計算してオプティミスティック更新
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -257,14 +272,35 @@ export default function TimeBlockingPage() {
       const taskId = Number(e.dataTransfer.getData("taskId"));
       if (!taskId || !timelineRef.current) return;
 
+      const dragType = e.dataTransfer.getData("dragType"); // "scheduled" | ""
       const rect = timelineRef.current.getBoundingClientRect();
       const rawTop = e.clientY - rect.top;
 
-      const start = topToIso(rawTop, selectedDate);
-      // デフォルト30分後をend_timeに設定
-      const endDate = new Date(start);
-      endDate.setMinutes(endDate.getMinutes() + 30);
-      const end = endDate.toISOString();
+      let start: string;
+      let end: string;
+
+      if (dragType === "scheduled") {
+        // タイムライン上のブロックを移動: grabOffset を考慮してブロック上端を計算
+        const grabOffset = Number(e.dataTransfer.getData("grabOffset") || "0");
+        const adjustedTop = rawTop - grabOffset;
+        start = topToIso(adjustedTop, selectedDate);
+
+        // 元のタスクの長さ（ミリ秒）を保持
+        const existing = tasks.find((t) => t.id === taskId);
+        if (existing && existing.start_time && existing.end_time) {
+          const durationMs =
+            new Date(existing.end_time).getTime() -
+            new Date(existing.start_time).getTime();
+          end = new Date(new Date(start).getTime() + durationMs).toISOString();
+        } else {
+          // フォールバック: 30分
+          end = calculateDefaultEndTime(start);
+        }
+      } else {
+        // インボックスからのドロップ: デフォルト30分
+        start = topToIso(rawTop, selectedDate);
+        end = calculateDefaultEndTime(start);
+      }
 
       // オプティミスティック更新: 即座にUIへ反映
       setTasks((prev) =>
@@ -277,7 +313,7 @@ export default function TimeBlockingPage() {
       // PUT /tasks/:id  { start_time: start, end_time: end }
       console.log("[API] PUT /tasks/", taskId, { start_time: start, end_time: end });
     },
-    [selectedDate]
+    [selectedDate, tasks]
   );
 
   const totalHeight =
