@@ -9,9 +9,9 @@ import {
   dueDateMeta,
 } from "./utils";
 
-type Props = { task: Task };
+type Props = { task: Task; onEdit?: () => void };
 
-export default function TaskListItem({ task }: Props) {
+export default function TaskListItem({ task, onEdit }: Props) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -52,10 +52,11 @@ export default function TaskListItem({ task }: Props) {
 
   return (
     <div
+      onClick={!task.is_completed ? onEdit : undefined}
       className={`group relative flex items-stretch bg-white rounded-xl border transition-all hover:shadow-md ${
         task.is_completed
           ? "border-slate-100 opacity-60"
-          : "border-slate-200 hover:border-slate-300"
+          : "border-slate-200 hover:border-slate-300 cursor-pointer"
       }`}
     >
       {/* カテゴリカラーバー（左端） */}
