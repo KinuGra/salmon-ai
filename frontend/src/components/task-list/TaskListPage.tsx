@@ -7,33 +7,18 @@ import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
 
 // ────────────────────────────────────────────
-// 見積もり時間: クイック選択肢
+// 見積もり時間
 // ────────────────────────────────────────────
 const DURATION_QUICK: { label: string; mins: number }[] = [
-  { label: "15m", mins: 15 },
-  { label: "30m", mins: 30 },
-  { label: "45m", mins: 45 },
-  { label: "1h",  mins: 60 },
-  { label: "1.5h",mins: 90 },
-  { label: "2h",  mins: 120 },
-  { label: "3h",  mins: 180 },
-  { label: "4h",  mins: 240 },
+  { label: "15m",  mins: 15  },
+  { label: "30m",  mins: 30  },
+  { label: "45m",  mins: 45  },
+  { label: "1h",   mins: 60  },
+  { label: "1.5h", mins: 90  },
+  { label: "2h",   mins: 120 },
+  { label: "3h",   mins: 180 },
+  { label: "4h",   mins: 240 },
 ];
-
-/** "1h30m" / "2h" / "45m" / "1.5h" → 分数に変換、パース失敗は null */
-function parseDurationInput(raw: string): number | null {
-  const s = raw.trim();
-  // "1h30m" or "1h 30m"
-  const hm = s.match(/^(\d+(?:\.\d+)?)h\s*(\d+)m$/i);
-  if (hm) return Math.round(parseFloat(hm[1]) * 60 + parseInt(hm[2]));
-  // "1h" or "1.5h"
-  const h = s.match(/^(\d+(?:\.\d+)?)h$/i);
-  if (h) return Math.round(parseFloat(h[1]) * 60);
-  // "30m"
-  const m = s.match(/^(\d+)m$/i);
-  if (m) return parseInt(m[1]);
-  return null;
-}
 
 /** 分数 → "1h30m" 表示 */
 function fmtMins(mins: number): string {
@@ -45,25 +30,27 @@ function fmtMins(mins: number): string {
 }
 
 // ────────────────────────────────────────────
-// 期限: クイック選択肢
+// 期限
 // ────────────────────────────────────────────
 const today = new Date();
+const THIS_YEAR = today.getFullYear();
+
 function addDays(d: Date, n: number): Date {
   const r = new Date(d); r.setDate(r.getDate() + n); return r;
 }
-// 今年を基準にした次回の月/日を返す（来年跨ぎは考慮しない簡易実装）
-function makeDueDate(month: number, day: number): Date {
-  const d = new Date(); d.setMonth(month - 1); d.setDate(day); return d;
+/** 年・月・日を指定してDateを生成 */
+function makeDueDate(year: number, month: number, day: number): Date {
+  return new Date(year, month - 1, day);
 }
 
 const DUE_QUICK = [
-  { label: "今日",   date: today },
-  { label: "明日",   date: addDays(today, 1) },
-  { label: "3日後",  date: addDays(today, 3) },
-  { label: "来週",   date: addDays(today, 7) },
+  { label: "今日",  date: today              },
+  { label: "明日",  date: addDays(today, 1)  },
+  { label: "3日後", date: addDays(today, 3)  },
+  { label: "来週",  date: addDays(today, 7)  },
 ];
 
-/** Date → "M/D" 表示 */
+/** Date → "M/D" 表示（データは年込みで管理、表示はMM/DDのみ） */
 function fmtMD(d: Date): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
@@ -74,37 +61,55 @@ function fmtMD(d: Date): string {
 function AddTaskModal({ onClose }: { onClose: () => void }) {
   // ── 見積もり ──
   const [selectedMins, setSelectedMins] = useState<number | null>(null);
-  const [durationRaw, setDurationRaw] = useState("");
+  // カスタム入力: 時間（整数）と分（0/15/30/45）の2フィールド
+  const [customH, setCustomH] = useState<string>("");
+  const [customM, setCustomM] = useState<string>("0");
 
   function handleQuickDuration(mins: number) {
     setSelectedMins(mins);
-    setDurationRaw("");            // カスタム入力をクリア
+    setCustomH("");
+    setCustomM("0");
   }
-  function handleDurationInput(v: string) {
-    setDurationRaw(v);
-    setSelectedMins(null);         // クイック選択を解除
+  function handleCustomDuration(h: string, m: string) {
+    setCustomH(h);
+    setCustomM(m);
+    setSelectedMins(null); // クイック選択を解除
   }
-  const durationMins = selectedMins ?? parseDurationInput(durationRaw);
+  // カスタムフィールドに入力があれば採用
+  const customDurationMins =
+    customH !== "" || customM !== "0"
+      ? (parseInt(customH || "0") * 60) + parseInt(customM)
+      : null;
+  const durationMins = selectedMins ?? customDurationMins;
 
-  // ── 期限 ──
+  // ── 期限（年もデータで管理） ──
   const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [customYear,  setCustomYear]  = useState<string>(String(THIS_YEAR));
   const [customMonth, setCustomMonth] = useState<string>("");
   const [customDay,   setCustomDay]   = useState<string>("");
 
   function handleQuickDue(d: Date) {
     setDueDate(d);
+    setCustomYear(String(d.getFullYear()));
     setCustomMonth(String(d.getMonth() + 1));
     setCustomDay(String(d.getDate()));
   }
-  function handleCustomDue(month: string, day: string) {
+  function handleCustomDue(year: string, month: string, day: string) {
+    setCustomYear(year);
     setCustomMonth(month);
     setCustomDay(day);
-    const m = parseInt(month), d = parseInt(day);
-    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      setDueDate(makeDueDate(m, d));
+    const y = parseInt(year), m = parseInt(month), d = parseInt(day);
+    if (y && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      setDueDate(makeDueDate(y, m, d));
     } else {
       setDueDate(null);
     }
+  }
+  function clearDue() {
+    setDueDate(null);
+    setCustomYear(String(THIS_YEAR));
+    setCustomMonth("");
+    setCustomDay("");
   }
 
   const inputCls = "w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition";
@@ -174,23 +179,30 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
               })}
             </div>
 
-            {/* カスタム入力: 0hOOm 形式 */}
-            <input
-              type="text"
-              value={durationRaw}
-              onChange={(e) => handleDurationInput(e.target.value)}
-              placeholder="例: 1h30m　0h45m　2h"
-              className={`${inputCls} ${
-                durationRaw && durationMins === null
-                  ? "border-red-300 ring-2 ring-red-100"  // パース失敗時
-                  : ""
-              }`}
-            />
-            {durationRaw && durationMins === null && (
-              <p className="text-[10px] text-red-400 mt-1">
-                形式例: 1h30m · 45m · 2h
-              </p>
-            )}
+            {/* カスタム入力: 時間（整数）+ 分（15分単位セレクト）の2フィールド */}
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="23"
+                value={customH}
+                onChange={(e) => handleCustomDuration(e.target.value, customM)}
+                placeholder="0"
+                className="w-16 border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] text-slate-800 text-center focus:outline-none focus:ring-2 focus:ring-indigo-300 transition"
+              />
+              <span className="text-[13px] text-slate-500 font-medium shrink-0">h</span>
+              <select
+                value={customM}
+                onChange={(e) => handleCustomDuration(customH, e.target.value)}
+                className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white transition"
+              >
+                <option value="0">00</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+              </select>
+              <span className="text-[13px] text-slate-500 font-medium shrink-0">m</span>
+            </div>
           </div>
 
           {/* ── 期限 ── */}
@@ -223,12 +235,23 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
               })}
             </div>
 
-            {/* カスタム: MM / DD */}
-            <div className="flex items-center gap-2">
+            {/* カスタム: YYYY / MM / DD（3セレクト、データに年を含める） */}
+            <div className="flex items-center gap-1.5">
+              {/* 年（今年・来年のみ） */}
+              <select
+                value={customYear}
+                onChange={(e) => handleCustomDue(e.target.value, customMonth, customDay)}
+                className="w-24 border border-slate-200 rounded-xl px-2 py-2.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white transition"
+              >
+                <option value={THIS_YEAR}>{THIS_YEAR}年</option>
+                <option value={THIS_YEAR + 1}>{THIS_YEAR + 1}年</option>
+              </select>
+
+              {/* 月 */}
               <select
                 value={customMonth}
-                onChange={(e) => handleCustomDue(e.target.value, customDay)}
-                className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white transition"
+                onChange={(e) => handleCustomDue(customYear, e.target.value, customDay)}
+                className="flex-1 border border-slate-200 rounded-xl px-2 py-2.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white transition"
               >
                 <option value="">月</option>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
@@ -236,12 +259,11 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
                 ))}
               </select>
 
-              <span className="text-slate-400 font-bold shrink-0">/</span>
-
+              {/* 日 */}
               <select
                 value={customDay}
-                onChange={(e) => handleCustomDue(customMonth, e.target.value)}
-                className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white transition"
+                onChange={(e) => handleCustomDue(customYear, customMonth, e.target.value)}
+                className="flex-1 border border-slate-200 rounded-xl px-2 py-2.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white transition"
               >
                 <option value="">日</option>
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
@@ -249,12 +271,12 @@ function AddTaskModal({ onClose }: { onClose: () => void }) {
                 ))}
               </select>
 
-              {/* クリアボタン */}
+              {/* クリア */}
               {dueDate && (
                 <button
                   type="button"
-                  onClick={() => { setDueDate(null); setCustomMonth(""); setCustomDay(""); }}
-                  className="shrink-0 text-[11px] text-slate-400 hover:text-slate-600 px-2"
+                  onClick={clearDue}
+                  className="shrink-0 text-[11px] text-slate-400 hover:text-slate-600 px-1.5"
                 >
                   ✕
                 </button>
