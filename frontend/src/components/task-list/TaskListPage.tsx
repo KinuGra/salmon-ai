@@ -5,6 +5,8 @@ import { Task } from "./types";
 import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
 
+type Category = { id: number; name: string; color: string };
+
 const API_BASE = "http://localhost:8080";
 
 // ────────────────────────────────────────────
@@ -275,15 +277,18 @@ function DueDateInput({
 function AddTaskModal({
   onClose,
   onAdd,
+  categories,
 }: {
   onClose: () => void;
-  onAdd: (task: Task) => void;
+  onAdd: (task: Task, categoryId: number | null) => void;
+  categories: Category[];
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("2");
   const [durationMins, setDurationMins] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
 
   function handleAdd() {
     if (!title.trim()) return;
@@ -298,7 +303,7 @@ function AddTaskModal({
       due_date: dueDate ? toLocalDateStr(dueDate) : null,
       category: null,
     };
-    onAdd(newTask);
+    onAdd(newTask, categoryId);
     onClose();
   }
 
@@ -347,6 +352,19 @@ function AddTaskModal({
           </div>
           <DurationInput initialMins={null} onChange={setDurationMins} />
           <DueDateInput initialDate={null} onChange={setDueDate} />
+          <div>
+            <label className={labelCls}>カテゴリ（任意）</label>
+            <select
+              value={categoryId ?? ""}
+              onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : null)}
+              className={`${inputCls} bg-white`}
+            >
+              <option value="">なし</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="flex gap-2.5 mt-6">
           <button onClick={onClose}
@@ -370,16 +388,18 @@ function AddTaskModal({
 // タスク編集モーダル
 // ────────────────────────────────────────────
 function EditTaskModal({
-  task, onClose, onUpdate, onDelete,
+  task, onClose, onUpdate, onDelete, categories,
 }: {
   task: Task;
   onClose: () => void;
-  onUpdate: (updated: Task) => void;
+  onUpdate: (updated: Task, categoryId: number | null) => void;
   onDelete: (id: number) => void;
+  categories: Category[];
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [priority, setPriority] = useState(String(task.priority ?? 2));
+  const [categoryId, setCategoryId] = useState<number | null>(task.category?.id ?? null);
 
   const initMins = task.estimated_hours != null ? Math.round(task.estimated_hours * 60) : null;
   const [durationMins, setDurationMins] = useState<number | null>(initMins);
@@ -389,7 +409,7 @@ function EditTaskModal({
 
   function handleSave() {
     if (!title.trim()) return;
-    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority), estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null });
+    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority), estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null }, categoryId);
     onClose();
   }
 
@@ -426,6 +446,19 @@ function EditTaskModal({
           </div>
           <DurationInput initialMins={initMins} onChange={setDurationMins} />
           <DueDateInput initialDate={initDue} onChange={setDueDate} />
+          <div>
+            <label className={labelCls}>カテゴリ（任意）</label>
+            <select
+              value={categoryId ?? ""}
+              onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : null)}
+              className={`${inputCls} bg-white`}
+            >
+              <option value="">なし</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="flex gap-2.5 mt-6">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold hover:bg-slate-200 transition-colors">キャンセル</button>
@@ -441,22 +474,27 @@ function EditTaskModal({
 // ────────────────────────────────────────────
 export default function TaskListPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE}/tasks`)
       .then((r) => r.json())
       .then((data) => setTasks(data))
       .catch((e) => console.error("タスク取得エラー:", e));
+    fetch(`${API_BASE}/categories`)
+      .then((r) => r.json())
+      .then((data) => setCategories(data))
+      .catch((e) => console.error("カテゴリ取得エラー:", e));
   }, []);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  async function handleUpdateTask(updated: Task) {
+  async function handleUpdateTask(updated: Task, categoryId: number | null) {
     try {
       const res = await fetch(`${API_BASE}/tasks/${updated.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: updated.title, description: updated.description, priority: updated.priority, estimated_hours: updated.estimated_hours, due_date: updated.due_date }),
+        body: JSON.stringify({ title: updated.title, description: updated.description, priority: updated.priority, estimated_hours: updated.estimated_hours, due_date: updated.due_date, category_id: categoryId }),
       });
       const saved: Task = await res.json();
       setTasks((prev: Task[]) => prev.map((t) => (t.id === saved.id ? saved : t)));
@@ -471,7 +509,7 @@ export default function TaskListPage() {
     } catch (e) { console.error("タスク削除エラー:", e); }
   }
 
-  async function handleAddTask(task: Task) {
+  async function handleAddTask(task: Task, categoryId: number | null) {
     try {
       const res = await fetch(`${API_BASE}/tasks`, {
         method: "POST",
@@ -482,6 +520,7 @@ export default function TaskListPage() {
           priority: task.priority,
           estimated_hours: task.estimated_hours,
           due_date: task.due_date,
+          category_id: categoryId,
         }),
       });
       const created: Task = await res.json();
@@ -619,7 +658,7 @@ export default function TaskListPage() {
 
       {/* ── タスク追加モーダル ── */}
       {showAdd && (
-        <AddTaskModal onClose={() => setShowAdd(false)} onAdd={handleAddTask} />
+        <AddTaskModal onClose={() => setShowAdd(false)} onAdd={handleAddTask} categories={categories} />
       )}
 
       {/* ── タスク編集モーダル ── */}
@@ -629,6 +668,7 @@ export default function TaskListPage() {
           onClose={() => setEditingTask(null)}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}
+          categories={categories}
         />
       )}
     </div>
