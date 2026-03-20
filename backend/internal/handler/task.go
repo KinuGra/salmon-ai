@@ -43,9 +43,16 @@ type UpdateTaskRequest struct {
 	AchievementRate *int     `json:"achievement_rate"`
 }
 
-// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-func getUserID() uint {
-	return uint(1)
+func getUserID(c *gin.Context) (uint, bool) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		return 0, false
+	}
+	uid, ok := userID.(uint)
+	if !ok {
+		return 0, false
+	}
+	return uid, true
 }
 
 func parseTime(s string) (time.Time, error) {
@@ -58,7 +65,11 @@ func parseTime(s string) (time.Time, error) {
 }
 
 func (h *TaskHandler) GetTasks(c *gin.Context) {
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	dateStr := c.Query("date")
 	if dateStr != "" {
@@ -85,7 +96,11 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetUnscheduledTasks(c *gin.Context) {
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	tasks, err := h.svc.GetUnscheduledTasks(userID)
 	if err != nil {
@@ -96,7 +111,11 @@ func (h *TaskHandler) GetUnscheduledTasks(c *gin.Context) {
 }
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	var req CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -130,7 +149,11 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -144,7 +167,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	fields := map[string]interface{}{}
+	fields := map[string]any{}
 
 	if req.Title != nil {
 		fields["title"] = *req.Title
@@ -208,7 +231,11 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

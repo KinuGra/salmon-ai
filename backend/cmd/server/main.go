@@ -88,7 +88,7 @@ func main() {
 
 	r.GET("/health", func(c *gin.Context) {
 		userID, _ := c.Get("userID")
-		c.JSON(200, gin.H{"status": "ok", "userID": userID,})
+		c.JSON(200, gin.H{"status": "ok", "userID": userID})
 	})
 
 	// Tasks
