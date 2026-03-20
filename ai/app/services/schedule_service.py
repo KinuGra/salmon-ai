@@ -3,7 +3,9 @@ import os
 import re
 from datetime import datetime
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+
 from app.prompts.schedule import SCHEDULE_SUPPORT_PROMPT
 from app.schemas.schedule import Issues, ScheduleRequest, ScheduleResponse
 
@@ -24,18 +26,17 @@ def support(req: ScheduleRequest) -> ScheduleResponse:
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("Gemini_API_KEY is not set")
+        raise ValueError("GEMINI_API_KEY is not set")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        "gemini-2.5-flash",
-        generation_config=genai.GenerationConfig(
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
             temperature=0.7,
             max_output_tokens=1024,
         ),
     )
-
-    response = model.generate_content(prompt)
 
     # マークダウンのコードブロックを除去
     text = response.text.strip()

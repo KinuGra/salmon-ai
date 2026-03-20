@@ -1,7 +1,8 @@
 import json
 import os
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.prompts.stats import STATS_COMMENT_PROMPT
 from app.schemas.stats import StatsCommentRequest, StatsCommentResponse
@@ -12,24 +13,7 @@ def generate_stats_comment(req: StatsCommentRequest) -> StatsCommentResponse:
     if not api_key:
         raise ValueError("GEMINI_API_KEY environment variable is not set")
 
-    genai.configure(api_key=api_key)
-
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        generation_config=genai.GenerationConfig(
-            temperature=0.7,
-            max_output_tokens=4096,
-            response_mime_type="application/json",
-            response_schema={
-                "type": "object",
-                "properties": {
-                    "comment": {"type": "string"},
-                    "follow_message": {"type": "string"},
-                },
-                "required": ["comment", "follow_message"],
-            },
-        ),
-    )
+    client = genai.Client(api_key=api_key)
 
     cur = req.current
     prev = req.previous
@@ -49,7 +33,16 @@ def generate_stats_comment(req: StatsCommentRequest) -> StatsCommentResponse:
         ach0_prev=prev.achievement_counts.get(0, 0),
     )
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.7,
+            max_output_tokens=4096,
+            response_mime_type="application/json",
+        ),
+    )
+
     data = json.loads(response.text)
 
     return StatsCommentResponse(
