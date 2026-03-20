@@ -9,7 +9,6 @@ import (
 	"github.com/salmon-ai/salmon-ai/internal/service"
 )
 
-
 type CategoryHandler struct {
 	svc *service.CategoryService
 }

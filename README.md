@@ -31,13 +31,13 @@ cd infra
 docker compose up --build
 ```
 
-## 確認
+## 動作確認
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8080/health
 - AI: http://localhost:8000/health
 - DB: localhost:5432
 
-http://localhost:3000/ - トップページ
-http://localhost:3000/tasks - タスクリスト
-http://localhost:3000/time-blocking - タイムブロッキング
+- http://localhost:3000/ - トップページ
+- http://localhost:3000/tasks - タスクリスト
+- http://localhost:3000/time-blocking - タイムブロッキング

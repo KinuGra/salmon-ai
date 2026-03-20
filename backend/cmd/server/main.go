@@ -4,15 +4,21 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/salmon-ai/salmon-ai/internal/middleware"
+	"github.com/joho/godotenv"
 	"github.com/salmon-ai/salmon-ai/internal/handler"
+	"github.com/salmon-ai/salmon-ai/internal/middleware"
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	aiclient "github.com/salmon-ai/salmon-ai/pkg/aiclient"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("no .env file found, using environment variables")
+	}
+
 	db, err := database.NewDB()
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
@@ -43,7 +49,7 @@ func main() {
 	var mockUser model.User
 	result := db.FirstOrCreate(&mockUser, model.User{
 		Email: "mock@example.com",
-		Name: "モックユーザー",
+		Name:  "モックユーザー",
 	})
 	if result.Error != nil {
 		log.Fatalf("failed to create mock user: %v", result.Error)
@@ -54,20 +60,33 @@ func main() {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
 
-	// Repository
+	// ── Repository ──────────────────────────────────────────
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	reflectionRepo := repository.NewReflectionRepository(db)
+	reflectionMessageRepo := repository.NewReflectionMessageRepository(db)
+	reportRepo := repository.NewReportRepository(db)
 
-	// Service
-	taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo)
+        // ── AI Client ───────────────────────────────────────────
+        aiClient := aiclient.NewClient()
+
+        // ── ContextBuilder ──────────────────────────────────────
+        contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
+
+        // ── Service ─────────────────────────────────────────────
+        taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
+	reportSvc := service.NewReportService(reportRepo, contextBuilder, aiClient)
+	reflectionSvc := service.NewReflectionService(reflectionRepo, reflectionMessageRepo, contextBuilder, aiClient)
 
-	// Handler
+	// ── Handler ─────────────────────────────────────────────
 	taskHandler := handler.NewTaskHandler(taskSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	reportHandler := handler.NewReportHandler(reportSvc)
+	reflectionHandler := handler.NewReflectionHandler(reflectionSvc)
 
 	// ミドルウェアの登録
 	r := gin.Default()
@@ -108,7 +127,17 @@ func main() {
 	r.GET("/user/profile", userHandler.GetProfile)
 	r.PUT("/user/profile", userHandler.UpdateProfile)
 
+	// Reports（自己分析レポート）
+	r.GET("/reports/latest", reportHandler.GetLatestReport)
+	r.POST("/ai/report/generate", reportHandler.GenerateReport)
+
+	// Reflections（振り返りAI対話）
+	r.GET("/reflections/today", reflectionHandler.GetToday)
+	r.GET("/reflections/:id/messages", reflectionHandler.GetMessages)
+	r.GET("/ai/reflection/stream", reflectionHandler.Stream)
+
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
+
