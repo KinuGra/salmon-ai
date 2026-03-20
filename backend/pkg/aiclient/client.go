@@ -117,7 +117,13 @@ func (c *Client) Stream(path string, body any, callback func([]byte)) error {
 		return fmt.Errorf("failed to join url: %w", err)
 	}
 
-	resp, err := c.HTTPClient.Post(
+	// ストリーミング用クライアント: ResponseHeaderTimeout を設定しない
+	// Gemini がストリーミングを開始するまでの初期化時間が ResponseHeaderTimeout を
+	// 超えるとヘッダー受信前にタイムアウトするため、ストリームは無制限にする
+	streamTransport := http.DefaultTransport.(*http.Transport).Clone()
+	streamClient := &http.Client{Transport: streamTransport}
+
+	resp, err := streamClient.Post(
 		targetURL,
 		"application/json",
 		bytes.NewBuffer(jsonBody),
