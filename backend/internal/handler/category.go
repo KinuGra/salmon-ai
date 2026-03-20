@@ -29,8 +29,11 @@ type UpdateCategoryRequest struct {
 }
 
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	categories, err := h.svc.GetCategories(userID)
 	if err != nil {
@@ -41,8 +44,11 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 }
 
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,8 +70,11 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 }
 
 func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -88,8 +97,11 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 }
 
 func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
