@@ -19,12 +19,6 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   },
 ];
 
-let responseIdx = 0;
-function getNextAiResponse(): string {
-  const r = MOCK_AI_RESPONSES[responseIdx % MOCK_AI_RESPONSES.length];
-  responseIdx++;
-  return r;
-}
 
 // ────────────────────────────────────────────
 // チュートリアルバナー
@@ -128,6 +122,14 @@ export default function ChatView() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nextId = useRef(1); // INITIAL_MESSAGESがid: 0を使っているため1から始める
+  const responseIdx = useRef(0);
+
+  function getNextAiResponse(): string {
+    const r = MOCK_AI_RESPONSES[responseIdx.current % MOCK_AI_RESPONSES.length];
+    responseIdx.current++;
+    return r;
+  }
 
   // 新メッセージが追加されたら最下部へスクロール
   useEffect(() => {
@@ -155,7 +157,7 @@ export default function ChatView() {
 
     // ユーザーメッセージを追加
     const userMsg: ChatMessage = {
-      id: Date.now(),
+      id: nextId.current++,
       role: "user",
       content: text,
     };
@@ -168,7 +170,7 @@ export default function ChatView() {
       setIsThinking(false);
 
       const fullText = getNextAiResponse();
-      const aiMsgId = Date.now() + 1;
+      const aiMsgId = nextId.current++;
 
       // 空のAIメッセージ（isStreaming=true）を追加
       setMessages((prev) => [
@@ -183,11 +185,14 @@ export default function ChatView() {
         charIdx++;
         const partial = fullText.slice(0, charIdx);
 
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === aiMsgId ? { ...m, content: partial } : m
-          )
-        );
+        setMessages((prev) => {
+          const updated = [...prev];
+          const idx = updated.findIndex((m) => m.id === aiMsgId);
+          if (idx !== -1) {
+            updated[idx] = { ...updated[idx], content: partial };
+          }
+          return updated;
+        });
 
         if (charIdx < fullText.length) {
           streamTimerRef.current = setTimeout(tick, STREAM_INTERVAL_MS);
