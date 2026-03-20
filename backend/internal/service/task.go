@@ -24,7 +24,7 @@ func NewTaskService(repo *repository.TaskRepository, userRepo *repository.UserRe
                 userRepo:     userRepo,
                 categoryRepo: categoryRepo,
                 aiClient:     aiClient,
-	return s.repo.FindByUserID(userID)
+        }
 }
 
 func (s *TaskService) GetTasksByDate(userID uint, date time.Time) ([]model.Task, error) {
