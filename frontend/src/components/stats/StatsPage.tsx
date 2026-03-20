@@ -35,14 +35,16 @@ function toDateStr(d: Date): string {
 
 function GrassGraph() {
   const [data, setData] = useState<Record<string, number>>({});
+  const [today, setToday] = useState<Date | null>(null);
 
   useEffect(() => {
+    setToday(new Date());
     fetch(`${API_BASE}/stats/grass?weeks=${GRASS_WEEKS}`)
       .then((r) => r.json())
       .then((d) => setData(d.data ?? {}));
   }, []);
 
-  const today = new Date();
+  if (!today) return null;
 
   // GRASS_WEEKS 週前の月曜日を起点にする
   const startDate = new Date(today);
