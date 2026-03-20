@@ -79,6 +79,7 @@ func (s *TaskService) CreateTask(task *model.Task) error {
 		}
 		if err := json.Unmarshal(data, &aiResp); err == nil {
 			task.AiEstimatedHours = &aiResp.EstimatedHours
+			task.AiEstimationReason = &aiResp.Reasoning
 			fmt.Printf("[AI Estimate Result] Title: %s -> %.1fh (Reason: %s)\n", task.Title, aiResp.EstimatedHours, aiResp.Reasoning)
 		} else {
 			log.Printf("AI見積もりレスポンスのパースに失敗しました: %v", err)

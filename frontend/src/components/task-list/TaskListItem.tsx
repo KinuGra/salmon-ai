@@ -2,12 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Task } from "./types";
-import {
-  hexToPastel,
-  hexToSolid,
-  PRIORITY_META,
-  dueDateMeta,
-} from "./utils";
+import { hexToPastel, hexToSolid, PRIORITY_META, dueDateMeta } from "./utils";
 
 type Props = { task: Task; onEdit?: () => void };
 
@@ -32,7 +27,10 @@ export default function TaskListItem({ task, onEdit }: Props) {
   useEffect(() => {
     if (!popoverOpen) return;
     function onOutside(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node)
+      ) {
         setPopoverOpen(false);
       }
     }
@@ -67,7 +65,6 @@ export default function TaskListItem({ task, onEdit }: Props) {
 
       {/* メインコンテンツ */}
       <div className="flex-1 min-w-0 px-4 py-3.5 flex gap-3 items-start">
-
         {/* 左: テキスト情報 */}
         <div className="flex-1 min-w-0">
           {/* タイトル行 */}
@@ -138,78 +135,119 @@ export default function TaskListItem({ task, onEdit }: Props) {
               }`}
             >
               {task.estimated_hours}
-              <span className="text-[10px] font-semibold ml-0.5 opacity-70">h</span>
+              <span className="text-[10px] font-semibold ml-0.5 opacity-70">
+                h
+              </span>
             </span>
           )}
 
-          {/* AIアラートトリガー */}
-          {hasAlert && (
-            <div ref={popoverRef} className="relative">
+          {/* AI見積もりアイコン（ズレがある場合はアラート化） */}
+          {task.ai_estimated_hours != null && (
+            <div
+              className="relative"
+              ref={popoverRef}
+              onMouseEnter={() => setPopoverOpen(true)}
+              onMouseLeave={() => setPopoverOpen(false)}
+            >
               <button
-                onClick={() => setPopoverOpen((p) => !p)}
-                onMouseEnter={() => setPopoverOpen(true)}
-                onMouseLeave={() => !popoverOpen && setPopoverOpen(false)}
-                className={`flex items-center gap-0.5 text-[11px] font-extrabold leading-none px-1.5 py-1 rounded-lg transition-all hover:scale-105 active:scale-95 ${
-                  isHighAlert
-                    ? "text-red-600 bg-red-50 hover:bg-red-100"
-                    : "text-amber-600 bg-amber-50 hover:bg-amber-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPopoverOpen((p) => !p);
+                }}
+                className={`flex items-center gap-1 text-[11px] font-bold leading-none px-2 py-1 rounded-md transition-all hover:scale-105 active:scale-95 ${
+                  hasAlert
+                    ? isHighAlert
+                      ? "text-red-600 bg-red-50 hover:bg-red-100"
+                      : "text-amber-600 bg-amber-50 hover:bg-amber-100"
+                    : "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
                 }`}
-                aria-label="AI見積もりとの乖離を確認"
+                aria-label="AI見積もりの詳細を確認"
               >
-                ！
+                <span>AI {task.ai_estimated_hours}h</span>
+                {hasAlert && <span className="font-extrabold">！</span>}
               </button>
 
               {/* ポップオーバー */}
               {popoverOpen && (
                 <div
-                  className="absolute right-0 top-8 z-50 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
-                  onMouseEnter={() => setPopoverOpen(true)}
-                  onMouseLeave={() => setPopoverOpen(false)}
+                  className="absolute right-0 top-8 z-50 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {/* 吹き出し三角 */}
                   <div className="absolute -top-1.5 right-3 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45" />
 
                   <p className="text-[11px] font-bold text-slate-700 mb-2">
-                    AIの見積もり
+                    AIの見積もり詳細
                   </p>
 
                   {/* 比較 */}
-                  <div className="flex items-end justify-between mb-3">
-                    <div className="text-center">
-                      <p className="text-[9px] text-slate-400 mb-0.5">あなた</p>
-                      <p className="text-[18px] font-bold text-slate-800 leading-none tabular-nums">
-                        {task.estimated_hours}
-                        <span className="text-[10px] ml-0.5">h</span>
-                      </p>
-                    </div>
-                    <div
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                        (aiDiff ?? 0) > 0
-                          ? "text-amber-700 bg-amber-50"
-                          : "text-blue-700 bg-blue-50"
-                      }`}
-                    >
-                      {(aiDiff ?? 0) > 0 ? "+" : ""}
-                      {aiDiff?.toFixed(1)}h
-                    </div>
-                    <div className="text-center">
-                      <p className="text-[9px] text-slate-400 mb-0.5">AI</p>
-                      <p
-                        className={`text-[18px] font-bold leading-none tabular-nums ${
-                          isHighAlert ? "text-red-500" : "text-amber-500"
+                  {task.estimated_hours != null ? (
+                    <div className="flex items-end justify-between mb-3">
+                      <div className="text-center">
+                        <p className="text-[9px] text-slate-400 mb-0.5">
+                          あなた
+                        </p>
+                        <p className="text-[18px] font-bold text-slate-800 leading-none tabular-nums">
+                          {task.estimated_hours}
+                          <span className="text-[10px] ml-0.5">h</span>
+                        </p>
+                      </div>
+                      <div
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                          (aiDiff ?? 0) > 0
+                            ? "text-amber-700 bg-amber-50"
+                            : (aiDiff ?? 0) < 0
+                              ? "text-blue-700 bg-blue-50"
+                              : "text-slate-600 bg-slate-100"
                         }`}
                       >
+                        {(aiDiff ?? 0) > 0 ? "+" : ""}
+                        {aiDiff?.toFixed(1)}h
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[9px] text-slate-400 mb-0.5">AI</p>
+                        <p
+                          className={`text-[18px] font-bold leading-none tabular-nums ${
+                            hasAlert
+                              ? isHighAlert
+                                ? "text-red-500"
+                                : "text-amber-500"
+                              : "text-indigo-600"
+                          }`}
+                        >
+                          {task.ai_estimated_hours}
+                          <span className="text-[10px] ml-0.5">h</span>
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center mb-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[9px] text-slate-400 mb-1">
+                        AIの推定時間
+                      </p>
+                      <p className="text-[20px] font-bold text-indigo-600 leading-none tabular-nums">
                         {task.ai_estimated_hours}
-                        <span className="text-[10px] ml-0.5">h</span>
+                        <span className="text-[12px] ml-0.5">h</span>
                       </p>
                     </div>
-                  </div>
+                  )}
 
-                  <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
-                    {isHighAlert
-                      ? "大幅な乖離があります。見積もりの見直しを推奨します。"
-                      : "やや差があります。余裕を持った計画を検討してください。"}
-                  </p>
+                  {/* AIの推論理由 */}
+                  {task.ai_estimation_reason ? (
+                    <div className="bg-slate-50 rounded-lg p-2 mb-3 max-h-32 overflow-y-auto custom-scrollbar">
+                      <p className="text-[10px] text-slate-600 leading-relaxed whitespace-pre-wrap">
+                        {task.ai_estimation_reason}
+                      </p>
+                    </div>
+                  ) : (
+                    hasAlert && (
+                      <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
+                        {isHighAlert
+                          ? "大幅な乖離があります。見積もりの見直しを推奨します。"
+                          : "やや差があります。余裕を持った計画を検討してください。"}
+                      </p>
+                    )
+                  )}
 
                   {/* 再見積もりボタン */}
                   <button
@@ -229,13 +267,6 @@ export default function TaskListItem({ task, onEdit }: Props) {
                 </div>
               )}
             </div>
-          )}
-
-          {/* AI見積もりなし・ズレなし */}
-          {!hasAlert && task.ai_estimated_hours != null && (
-            <span className="text-[9px] text-slate-300 font-medium leading-none">
-              AI {task.ai_estimated_hours}h
-            </span>
           )}
         </div>
       </div>
