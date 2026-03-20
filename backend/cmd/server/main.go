@@ -8,6 +8,7 @@ import (
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	aiclient "github.com/salmon-ai/salmon-ai/pkg/ai_client"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
@@ -42,7 +43,7 @@ func main() {
 	var mockUser model.User
 	result := db.FirstOrCreate(&mockUser, model.User{
 		Email: "mock@example.com",
-		Name: "モックユーザー",
+		Name:  "モックユーザー",
 	})
 	if result.Error != nil {
 		log.Fatalf("failed to create mock user: %v", result.Error)
@@ -53,20 +54,30 @@ func main() {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
 
-	// Repository
+	// ── Repository ──────────────────────────────────────────
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	reflectionRepo := repository.NewReflectionRepository(db)
+	reportRepo := repository.NewReportRepository(db)
 
-	// Service
+	// ── AI Client ───────────────────────────────────────────
+	aiClient := aiclient.NewClient()
+
+	// ── ContextBuilder ──────────────────────────────────────
+	contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
+
+	// ── Service ─────────────────────────────────────────────
 	taskSvc := service.NewTaskService(taskRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
+	reportSvc := service.NewReportService(reportRepo, contextBuilder, aiClient)
 
-	// Handler
+	// ── Handler ─────────────────────────────────────────────
 	taskHandler := handler.NewTaskHandler(taskSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	reportHandler := handler.NewReportHandler(reportSvc)
 
 	r := gin.Default()
 
@@ -90,6 +101,10 @@ func main() {
 	// User
 	r.GET("/user/profile", userHandler.GetProfile)
 	r.PUT("/user/profile", userHandler.UpdateProfile)
+
+	// Reports（自己分析レポート）
+	r.GET("/reports/latest", reportHandler.GetLatestReport)
+	r.POST("/ai/report/generate", reportHandler.GenerateReport)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)
