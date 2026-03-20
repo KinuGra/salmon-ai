@@ -12,3 +12,13 @@ export type Task = {
   achievement_rate: number | null;
   category: { id: number; name: string; color: string } | null;
 };
+
+export interface ScheduleIssues {
+  buffer_shortage: boolean;
+  priority_bias: boolean;
+}
+
+export interface ScheduleResponse {
+  issues: ScheduleIssues;
+  advice: string;
+}
