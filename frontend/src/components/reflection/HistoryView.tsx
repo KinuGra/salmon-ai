@@ -135,7 +135,7 @@ function HistoryItem({
               {date.getDate()}
             </span>
             <span className={`text-[9px] font-semibold leading-none mt-0.5 ${isExpanded ? "text-indigo-200" : "text-slate-400"}`}>
-              {date.toLocaleDateString("ja-JP", { month: "numeric" })}月
+              {date.getMonth() + 1}月
             </span>
           </div>
 
