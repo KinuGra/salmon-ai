@@ -60,6 +60,20 @@ func main() {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
 
+	// デフォルトカテゴリの作成
+	defaultCategories := []model.Category{
+		{UserID: mockUser.ID, Name: "仕事", Color: "#3B82F6"},
+		{UserID: mockUser.ID, Name: "学習", Color: "#22C55E"},
+		{UserID: mockUser.ID, Name: "生活", Color: "#EAB308"},
+		{UserID: mockUser.ID, Name: "健康", Color: "#EF4444"},
+		{UserID: mockUser.ID, Name: "趣味", Color: "#A855F7"},
+	}
+	for _, cat := range defaultCategories {
+		if err := db.FirstOrCreate(&model.Category{}, model.Category{UserID: cat.UserID, Name: cat.Name, Color: cat.Color}).Error; err != nil {
+			log.Fatalf("failed to create default category '%s': %v", cat.Name, err)
+		}
+	}
+
 	// ── Repository ──────────────────────────────────────────
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)

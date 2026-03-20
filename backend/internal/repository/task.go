@@ -48,7 +48,10 @@ func (r *TaskRepository) FindUnscheduled(userID uint) ([]model.Task, error) {
 }
 
 func (r *TaskRepository) Create(task *model.Task) error {
-	return r.db.Create(task).Error
+	if err := r.db.Create(task).Error; err != nil {
+		return err
+	}
+	return r.db.Preload("Category").First(task, task.ID).Error
 }
 
 func (r *TaskRepository) Update(id uint, userID uint, fields map[string]interface{}) (*model.Task, error) {
