@@ -15,17 +15,15 @@ type TaskService struct {
 	repo         *repository.TaskRepository
 	userRepo     *repository.UserRepository
 	categoryRepo *repository.CategoryRepository
+        aiClient     *aiclient.Client
 }
 
-func NewTaskService(repo *repository.TaskRepository, userRepo *repository.UserRepository, categoryRepo *repository.CategoryRepository) *TaskService {
-	return &TaskService{
-		repo:         repo,
-		userRepo:     userRepo,
-		categoryRepo: categoryRepo,
-	}
-}
-
-func (s *TaskService) GetTasks(userID uint) ([]model.Task, error) {
+func NewTaskService(repo *repository.TaskRepository, userRepo *repository.UserRepository, categoryRepo *repository.CategoryRepository, aiClient *aiclient.Client) *TaskService {
+        return &TaskService{
+                repo:         repo,
+                userRepo:     userRepo,
+                categoryRepo: categoryRepo,
+                aiClient:     aiClient,
 	return s.repo.FindByUserID(userID)
 }
 
@@ -58,21 +56,16 @@ func (s *TaskService) CreateTask(task *model.Task) error {
 
 	// カテゴリ名の取得
 	if task.CategoryID != nil {
-		if categories, err := s.categoryRepo.FindByUserID(task.UserID); err == nil {
-			for _, cat := range categories {
-				if cat.ID == *task.CategoryID {
-					reqPayload.Category = &cat.Name
-					break
-				}
-			}
+		if cat, err := s.categoryRepo.FindByIDAndUserID(*task.CategoryID, task.UserID); err == nil {
+			reqPayload.Category = &cat.Name
 		} else {
-			log.Printf("カテゴリ情報の取得に失敗しました (userID: %d): %v", task.UserID, err)
+			log.Printf("カテゴリ情報の個別取得に失敗しました (userID: %d, categoryID: %d): %v", task.UserID, *task.CategoryID, err)
 		}
 	}
 
 	// aiclientを使ってAIに見積もりをリクエストし、結果をタスクにセット
-	client := aiclient.NewClient()
-	if data, err := client.Post("/estimate", reqPayload); err == nil {
+	
+	if data, err := s.aiClient.Post("/estimate", reqPayload); err == nil {
 		var aiResp struct {
 			EstimatedHours float64 `json:"estimated_hours"`
 			Reasoning      string  `json:"reasoning"`

@@ -75,7 +75,7 @@ func main() {
         contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
 
         // ── Service ─────────────────────────────────────────────
-        taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo)
+        taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo, aiClient)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
 	reportSvc := service.NewReportService(reportRepo, contextBuilder, aiClient)

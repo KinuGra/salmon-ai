@@ -1,9 +1,12 @@
 import google.generativeai as genai
 import os
 import json
+import logging
 from fastapi import HTTPException
 from app.schemas.task import TaskEstimateRequest, TaskEstimateResponse
 from app.prompts.task import SYSTEM_PROMPT, build_task_estimate_prompt
+
+logger = logging.getLogger(__name__)
 
 def estimate_task_service(request: TaskEstimateRequest) -> TaskEstimateResponse:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -42,5 +45,9 @@ def estimate_task_service(request: TaskEstimateRequest) -> TaskEstimateResponse:
             estimated_hours=float(parsed_result.get("estimated_hours", 0)),
             reasoning=parsed_result.get("reasoning", "")
         )
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode JSON from AI response: {str(e)}\nResponse text: {result}")
+        raise HTTPException(status_code=500, detail="Failed to parse task estimate from AI")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error calling Gemini AI: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error occurred while processing task estimate")

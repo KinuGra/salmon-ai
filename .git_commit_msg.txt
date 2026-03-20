@@ -1,0 +1,9 @@
+﻿refactor: improve AI service error handling and optimize category lookup
+
+- AI Service (ai/app/services/task.py):
+  - 例外処理を細分化し、json.JSONDecodeError とその他の例外を個別に捕捉するように修正
+  - エラーの詳細をクライアントに返さず内部でログ出力するようにし、セキュリティと堅牢性を向上
+
+- Backend Service (backend/internal/...):
+  - CategoryRepository に特定のIDとユーザーIDで1件だけカテゴリを取得する FindByIDAndUserID メソッドを追加
+  - タスク作成時、全カテゴリを取得するループ処理を廃止し、DBへの直接アクセスによりパフォーマンスを最適化
