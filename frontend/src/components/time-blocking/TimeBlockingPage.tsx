@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Task } from "./types";
+import { Task, ScheduleResponse } from "./types";
 
 const API_BASE = "http://localhost:8080";
 import {
@@ -17,7 +17,7 @@ import InboxSidebar from "./InboxSidebar";
 
 const HOURS = Array.from(
   { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
-  (_, i) => TIMELINE_START_HOUR + i
+  (_, i) => TIMELINE_START_HOUR + i,
 );
 
 const MOTIVATION_QUOTES = [
@@ -61,35 +61,32 @@ function DateNav({
           <button
             key={i}
             onClick={() => onChange(new Date(day))}
-            className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${
-              isSelected
+            className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${isSelected
                 ? "bg-indigo-600 shadow-sm"
                 : "hover:bg-slate-100 active:scale-95"
-            }`}
+              }`}
           >
             {/* 曜日 */}
             <span
-              className={`text-[9px] font-semibold mb-0.5 leading-none ${
-                isSelected
+              className={`text-[9px] font-semibold mb-0.5 leading-none ${isSelected
                   ? "text-indigo-200"
                   : isSat
-                  ? "text-blue-400"
-                  : isSun
-                  ? "text-red-400"
-                  : "text-slate-400"
-              }`}
+                    ? "text-blue-400"
+                    : isSun
+                      ? "text-red-400"
+                      : "text-slate-400"
+                }`}
             >
               {DAY_LABELS[dow]}
             </span>
             {/* 日付 */}
             <span
-              className={`text-[14px] font-bold leading-none ${
-                isSelected
+              className={`text-[14px] font-bold leading-none ${isSelected
                   ? "text-white"
                   : isToday
-                  ? "text-indigo-600"
-                  : "text-slate-800"
-              }`}
+                    ? "text-indigo-600"
+                    : "text-slate-800"
+                }`}
             >
               {day.getDate()}
             </span>
@@ -144,7 +141,39 @@ function CurrentTimeLine() {
 // ────────────────────────────────────────────
 // AIスケジューリング診断モーダル
 // ────────────────────────────────────────────
-function AIModal({ onClose }: { onClose: () => void }) {
+function AIModal({
+  selectedDate,
+  onClose,
+}: {
+  selectedDate: Date;
+  onClose: () => void;
+}) {
+  const [result, setResult] = useState<ScheduleResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const date = selectedDate.toISOString().split("T")[0];
+    fetch(`${API_BASE}/ai/schedule/support`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date }),
+      signal: controller.signal,
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`status ${r.status}`);
+        return r.json();
+      })
+      .then((data: ScheduleResponse) => setResult(data))
+      .catch((e) => {
+        if (e.name === "AbortError") return;
+        setError("診断に失敗しました。");
+      })
+      .finally(() => setIsLoading(false));
+    return () => controller.abort();
+  }, [selectedDate]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -160,31 +189,61 @@ function AIModal({ onClose }: { onClose: () => void }) {
             <h3 className="font-bold text-slate-800 text-[15px]">
               AIスケジューリング診断
             </h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">診断中...</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {isLoading ? "診断中..." : "診断完了"}
+            </p>
           </div>
         </div>
+
         <div className="bg-slate-50 rounded-xl p-3 text-[12px] text-slate-600 leading-relaxed">
-          <p className="font-semibold text-slate-700 mb-1.5">診断結果</p>
-          <p>
-            本日のスケジュールは{" "}
-            <span className="text-amber-600 font-bold">バッファ不足</span>{" "}
-            の可能性があります。
-          </p>
-          <ul className="mt-2 space-y-1">
-            <li className="flex gap-1.5">
-              <span className="text-amber-500 shrink-0">▲</span>
-              「認証APIの実装」はAI見積もりより1.5h多くかかる見込みです
-            </li>
-            <li className="flex gap-1.5">
-              <span className="text-amber-500 shrink-0">▲</span>
-              16:00以降に0.5hの空きを確保することを推奨します
-            </li>
-            <li className="flex gap-1.5">
-              <span className="text-green-500 shrink-0">✓</span>
-              午前中の集中ブロックは効果的に配置されています
-            </li>
-          </ul>
+          {/* ローディング */}
+          {isLoading && (
+            <p className="text-center text-slate-400 py-4">診断しています...</p>
+          )}
+
+          {/* エラー */}
+          {error && (
+            <p className="text-center text-red-500 py-4">{error}</p>
+          )}
+
+          {/* 結果 */}
+          {result && (
+            <>
+              <p className="font-semibold text-slate-700 mb-2">診断結果</p>
+
+              {/* 問題なし */}
+              {!result.issues.buffer_shortage && !result.issues.priority_bias && (
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-green-500">✓</span>
+                  <span>問題は検出されませんでした</span>
+                </div>
+              )}
+
+              {/* バッファ不足 */}
+              {result.issues.buffer_shortage && (
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-amber-500 shrink-0">▲</span>
+                  <span className="text-amber-600 font-bold">バッファ不足</span>
+                </div>
+              )}
+
+              {/* 優先度の偏り */}
+              {result.issues.priority_bias && (
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-amber-500 shrink-0">▲</span>
+                  <span className="text-amber-600 font-bold">優先度の偏りあり</span>
+                </div>
+              )}
+
+              {/* アドバイス */}
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <p className="font-semibold text-slate-700 mb-1">アドバイス</p>
+                <p className="text-slate-600 leading-relaxed">{result.advice}</p>
+              </div>
+            </>
+          )}
         </div>
+
         <button
           onClick={onClose}
           className="mt-4 w-full py-2.5 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 transition-colors"
@@ -223,7 +282,10 @@ export default function TimeBlockingPage() {
       .catch((e) => console.error("タスク取得エラー:", e));
   }, [selectedDate]);
   // D&D中のドロップ位置インジケーター（top/bottom px）
-  const [dropIndicator, setDropIndicator] = useState<{ top: number; bottom: number } | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{
+    top: number;
+    bottom: number;
+  } | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   // SSR時のHydrationエラーを防ぐため、初期状態は固定値またはnullにし、クライアントサイドでランダムな値を設定する
@@ -239,10 +301,9 @@ export default function TimeBlockingPage() {
   const scheduled = tasks.filter(
     (t) =>
       t.start_time !== null &&
-      new Date(t.start_time).toDateString() === selectedDateStr
+      new Date(t.start_time).toDateString() === selectedDateStr,
   );
   const inbox = tasks.filter((t) => t.start_time === null);
-
 
   function handleDateChange(d: Date) {
     setSelectedDate(d);
@@ -254,9 +315,13 @@ export default function TimeBlockingPage() {
     setTasks((prev: Task[]) =>
       prev.map((t: Task) =>
         t.id === id
-          ? { ...t, achievement_rate: value, ...(value === 100 ? { is_completed: true } : {}) }
-          : t
-      )
+          ? {
+            ...t,
+            achievement_rate: value,
+            ...(value === 100 ? { is_completed: true } : {}),
+          }
+          : t,
+      ),
     );
     try {
       const res = await fetch(`${API_BASE}/tasks/${id}`, {
@@ -279,10 +344,14 @@ export default function TimeBlockingPage() {
     if (!timelineRef.current) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const rawTop = e.clientY - rect.top;
-    const dragInfo = (window as any).__dragInfo ?? { durationMins: 30, grabOffset: 0 };
+    const dragInfo = (window as any).__dragInfo ?? {
+      durationMins: 30,
+      grabOffset: 0,
+    };
     // grabOffset を考慮してブロック上端の位置を計算し、15分単位に丸める
     const adjustedTop = rawTop - dragInfo.grabOffset;
-    const snappedTop = Math.round(adjustedTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
+    const snappedTop =
+      Math.round(adjustedTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
     const snappedBottom = snappedTop + dragInfo.durationMins * PX_PER_MIN;
     setDropIndicator({ top: snappedTop, bottom: snappedBottom });
   }, []);
@@ -326,7 +395,10 @@ export default function TimeBlockingPage() {
           const durationMs =
             new Date(existing.end_time).getTime() -
             new Date(existing.start_time).getTime();
-          end = new Date(new Date(start).getTime() + durationMs).toISOString().slice(0, 19) + "Z";
+          end =
+            new Date(new Date(start).getTime() + durationMs)
+              .toISOString()
+              .slice(0, 19) + "Z";
         } else {
           // フォールバック: 30分
           end = calculateDefaultEndTime(start);
@@ -337,7 +409,9 @@ export default function TimeBlockingPage() {
         const droppedTask = tasks.find((t: Task) => t.id === taskId);
         if (droppedTask?.estimated_hours) {
           const endDate = new Date(start);
-          endDate.setMinutes(endDate.getMinutes() + droppedTask.estimated_hours * 60);
+          endDate.setMinutes(
+            endDate.getMinutes() + droppedTask.estimated_hours * 60,
+          );
           end = endDate.toISOString().slice(0, 19) + "Z";
         } else {
           end = calculateDefaultEndTime(start);
@@ -348,23 +422,25 @@ export default function TimeBlockingPage() {
       const originalTasks = tasks;
       setTasks((prev: Task[]) =>
         prev.map((t: Task) =>
-          t.id === taskId ? { ...t, start_time: start, end_time: end } : t
-        )
+          t.id === taskId ? { ...t, start_time: start, end_time: end } : t,
+        ),
       );
 
       fetch(`${API_BASE}/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_time: start, end_time: end }),
-      }).then((res) => {
-        if (!res.ok) throw new Error(`status ${res.status}`);
-      }).catch((e) => {
-        console.error("タイムブロック更新エラー:", e);
-        setTasks(originalTasks);
-        showError("タスクを移動できませんでした。");
-      });
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`status ${res.status}`);
+        })
+        .catch((e) => {
+          console.error("タイムブロック更新エラー:", e);
+          setTasks(originalTasks);
+          showError("タスクを移動できませんでした。");
+        });
     },
-    [selectedDate, tasks]
+    [selectedDate, tasks],
   );
 
   if (!selectedDate) return null;
@@ -374,8 +450,8 @@ export default function TimeBlockingPage() {
     const originalTasks = tasks;
     setTasks((prev: Task[]) =>
       prev.map((t: Task) =>
-        t.id === taskId ? { ...t, start_time: null, end_time: null } : t
-      )
+        t.id === taskId ? { ...t, start_time: null, end_time: null } : t,
+      ),
     );
     try {
       const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
@@ -401,7 +477,10 @@ export default function TimeBlockingPage() {
   });
 
   return (
-    <div className="bg-slate-50 flex flex-col" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
+    <div
+      className="bg-slate-50 flex flex-col"
+      style={{ height: "calc(100svh - var(--bottom-nav-height))" }}
+    >
       {errorMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white text-[12px] font-semibold px-4 py-2 rounded-xl shadow-lg pointer-events-none">
           {errorMessage}
@@ -410,7 +489,6 @@ export default function TimeBlockingPage() {
 
       {/* ── Header ── */}
       <div className="bg-white/90 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-3 pb-3">
-
         {/* Row 1: ② 週ナビゲーション */}
         <DateNav selected={selectedDate} onChange={handleDateChange} />
 
@@ -446,7 +524,6 @@ export default function TimeBlockingPage() {
 
       {/* ── コンテンツエリア: スマホ=縦積み / PC=2カラム ── */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-
         {/* 左カラム: タイムライン */}
         <div className="flex-1 overflow-y-auto pb-48 lg:pb-4 px-2 pt-2">
           {/* ③ タイムライン全体をD&Dドロップゾーンに */}
@@ -493,7 +570,10 @@ export default function TimeBlockingPage() {
                 {/* 半透明エリア */}
                 <div
                   className="absolute left-9 right-0 z-29 pointer-events-none bg-indigo-200/40 rounded-lg"
-                  style={{ top: dropIndicator.top, height: dropIndicator.bottom - dropIndicator.top }}
+                  style={{
+                    top: dropIndicator.top,
+                    height: dropIndicator.bottom - dropIndicator.top,
+                  }}
                 />
                 {/* 上端ライン */}
                 <div
@@ -540,7 +620,12 @@ export default function TimeBlockingPage() {
       <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} />
 
       {/* AIモーダル */}
-      {showAI && <AIModal onClose={() => setShowAI(false)} />}
+      {showAI && (
+        <AIModal
+          selectedDate={selectedDate}
+          onClose={() => setShowAI(false)}
+        />
+      )}
     </div>
   );
 }
