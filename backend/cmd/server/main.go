@@ -96,6 +96,8 @@ func main() {
 		}
 	}
 
+	// ここからDI（依存性注入）
+
 	// ── Repository ──────────────────────────────────────────
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
@@ -105,19 +107,20 @@ func main() {
 	reflectionMessageRepo := repository.NewReflectionMessageRepository(db)
 	reportRepo := repository.NewReportRepository(db)
 
-        // ── AI Client ───────────────────────────────────────────
-        aiClient := aiclient.NewClient()
+	// ── AI Client ───────────────────────────────────────────
+	aiClient := aiclient.NewClient()
 
-        // ── ContextBuilder ──────────────────────────────────────
-        contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
+	// ── ContextBuilder ──────────────────────────────────────
+	contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
 
-        // ── Service ─────────────────────────────────────────────
-        taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo, aiClient)
+	// ── Service ─────────────────────────────────────────────
+	taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo, aiClient)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
 	statsSvc := service.NewStatsService(statsRepo)
 	reportSvc := service.NewReportService(reportRepo, contextBuilder, aiClient)
 	reflectionSvc := service.NewReflectionService(reflectionRepo, reflectionMessageRepo, contextBuilder, aiClient)
+	scheduleSvc := service.NewScheduleService(taskRepo, contextBuilder, aiClient)
 
 	// ── Handler ─────────────────────────────────────────────
 	taskHandler := handler.NewTaskHandler(taskSvc)
@@ -126,7 +129,7 @@ func main() {
 	statsHandler := handler.NewStatsHandler(statsSvc, aiClient)
 	reportHandler := handler.NewReportHandler(reportSvc)
 	reflectionHandler := handler.NewReflectionHandler(reflectionSvc)
-
+	scheduleHandler := handler.NewScheduleHandler(scheduleSvc)
 
 	// ミドルウェアの登録
 	r := gin.Default()
@@ -183,8 +186,10 @@ func main() {
 	r.GET("/reflections/:id/messages", reflectionHandler.GetMessages)
 	r.GET("/ai/reflection/stream", reflectionHandler.Stream)
 
+	// Schedule（スケジュールサポート）
+	r.POST("/ai/schedule/support", scheduleHandler.ScheduleSupport)
+
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
-
