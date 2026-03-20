@@ -69,11 +69,14 @@ func main() {
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	userHandler := handler.NewUserHandler(userSvc)
 
+	// ミドルウェアの登録
 	r := gin.Default()
 	r.Use(middleware.CORS())
+	r.Use(middleware.MockAuth(mockUser.ID))
 
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		userID, _ := c.Get("userID")
+		c.JSON(200, gin.H{"status": "ok", "userID": userID,})
 	})
 
 	// Tasks
