@@ -10,6 +10,21 @@ export default function TaskListItem({ task, onEdit }: Props) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setPopoverOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setPopoverOpen(false);
+    }, 250);
+  };
 
   const color = task.category?.color ?? "#94a3b8";
   const priority = PRIORITY_META[task.priority] ?? PRIORITY_META[3];
@@ -146,8 +161,8 @@ export default function TaskListItem({ task, onEdit }: Props) {
             <div
               className="relative"
               ref={popoverRef}
-              onMouseEnter={() => setPopoverOpen(true)}
-              onMouseLeave={() => setPopoverOpen(false)}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
             >
               <button
                 onClick={(e) => {
