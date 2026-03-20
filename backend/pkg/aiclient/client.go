@@ -99,3 +99,46 @@ func (c *Client) Get(path string, params map[string]string) ([]byte, error) {
 
 	return data, nil
 }
+
+func (c *Client) Stream(path string, body any, callback func([]byte)) error {
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	targetURL, err := url.JoinPath(c.BaseURL, path)
+	if err != nil {
+		return fmt.Errorf("failed to join url: %w", err)
+	}
+
+	resp, err := c.HTTPClient.Post(
+		targetURL,
+		"application/json",
+		bytes.NewBuffer(jsonBody),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to post request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	buf := make([]byte, 4096)
+	for {
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			callback(buf[:n])
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read stream: %w", err)
+		}
+	}
+
+	return nil
+}
