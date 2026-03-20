@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useTouchDrag } from "./useTouchDrag";
+import { useDragContext } from "./DragContext";
 import { Task } from "./types";
 import {
   PX_PER_MIN,
@@ -16,6 +18,7 @@ type Props = {
   task: Task;
   onAchievementChange: (id: number, value: number) => void;
   onEdit: (task: Task) => void;
+  onTouchDrop: (taskId: number, clientY: number, dragType: "scheduled" | "inbox") => void;
 };
 
 // ────────────────────────────────────────────
@@ -191,8 +194,29 @@ function AiAlertPopover({
 // ────────────────────────────────────────────
 // タスクブロック本体
 // ────────────────────────────────────────────
-export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) {
-  const [isDragging, setIsDragging] = useState(false);
+export default function TaskBlock({ task, onAchievementChange, onEdit, onTouchDrop }: Props) {
+  const [mouseDragging, setMouseDragging] = useState(false);
+  const blockRef = useRef<HTMLDivElement>(null);
+  const { dragInfoRef, lastDropXRef } = useDragContext();
+
+  const { isDragging: touchDragging, ghostPortal } = useTouchDrag({
+    elementRef: blockRef,
+    onDragStart: (meta) => { dragInfoRef.current = meta; },
+    onDrop: (clientX, clientY) => {
+      lastDropXRef.current = clientX;
+      onTouchDrop(task.id, clientY, "scheduled");
+    },
+    getDragMeta: () => {
+      const durationMins = task.end_time && task.start_time
+        ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+        : (task.estimated_hours ?? 0.5) * 60;
+      return { durationMins: Math.round(durationMins) };
+    },
+    borderRadius: "12px",
+    freeX: false,
+  });
+
+  const isDragging = mouseDragging || touchDragging;
 
   if (!task.start_time) return null;
   // end_time も estimated_hours もない場合はブロッキング不可
@@ -233,30 +257,32 @@ export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) 
   const isCompact = height < 52;
 
   return (
-    <div
-      // flex-col にして内部の行を縦積みで管理
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("taskId", String(task.id));
-        e.dataTransfer.setData("dragType", "scheduled");
-        const rect = e.currentTarget.getBoundingClientRect();
-        const grabOffset = Math.round(e.clientY - rect.top);
-        e.dataTransfer.setData("grabOffset", String(grabOffset));
-        e.dataTransfer.effectAllowed = "move";
-        // dragover 中に dataTransfer.getData が使えないため window に退避
-        const durationMins = task.end_time && task.start_time
-          ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
-          : (task.estimated_hours ?? 0.5) * 60;
-        (window as any).__dragInfo = { durationMins: Math.round(durationMins), grabOffset };
-        // ghost 画像が capture された後に元ブロックを非表示にする
-        setTimeout(() => setIsDragging(true), 0);
-      }}
-      onDragEnd={() => setIsDragging(false)}
+    <>
+      {ghostPortal}
+      <div
+        // flex-col にして内部の行を縦積みで管理
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("taskId", String(task.id));
+          e.dataTransfer.setData("dragType", "scheduled");
+          const rect = e.currentTarget.getBoundingClientRect();
+          const grabOffset = Math.round(e.clientY - rect.top);
+          e.dataTransfer.setData("grabOffset", String(grabOffset));
+          e.dataTransfer.effectAllowed = "move";
+          const durationMins = task.end_time && task.start_time
+            ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+            : (task.estimated_hours ?? 0.5) * 60;
+          dragInfoRef.current = { durationMins: Math.round(durationMins), grabOffset };
+          setTimeout(() => setMouseDragging(true), 0);
+        }}
+        ref={blockRef}
+        onDragEnd={() => setMouseDragging(false)}
       onClick={() => onEdit(task)}
       className="absolute left-0 right-1 rounded-xl overflow-visible transition-all flex flex-col cursor-grab active:cursor-grabbing"
       style={{
         top,
         height,
+        touchAction: "none",
         background: bgColor,
         border: `1.5px solid ${borderColor}`,
         boxShadow: isActive
@@ -339,5 +365,6 @@ export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) 
         <div className="w-8 h-0.5 rounded-full bg-slate-400 opacity-50" />
       </div>
     </div>
+    </>
   );
 }

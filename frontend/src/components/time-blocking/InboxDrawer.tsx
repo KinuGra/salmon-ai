@@ -9,9 +9,10 @@ type Props = {
   tasks: Task[];
   onReturnToInbox: (taskId: number) => void;
   onEdit?: (task: Task) => void;
+  onTouchDrop?: (taskId: number, clientY: number, dragType: "scheduled" | "inbox") => void;
 };
 
-export default function InboxDrawer({ tasks, onReturnToInbox, onEdit }: Props) {
+export default function InboxDrawer({ tasks, onReturnToInbox, onEdit, onTouchDrop }: Props) {
   const [expanded, setExpanded] = useState(false);
   const { isDragOver, handleDragOver, handleDragLeave, handleDrop } =
     useInboxDropZone({ onReturnToInbox });
@@ -20,6 +21,7 @@ export default function InboxDrawer({ tasks, onReturnToInbox, onEdit }: Props) {
   return (
     // lg+ では InboxSidebar が右カラムに表示されるためDrawerは非表示
     <div
+      data-inbox-drop-zone="true"
       className="fixed bottom-16 left-0 right-0 z-30 transition-all duration-300 ease-out lg:hidden"
       style={{ maxWidth: 480, margin: "0 auto" }}
       onDragOver={handleDragOver}
@@ -57,20 +59,20 @@ export default function InboxDrawer({ tasks, onReturnToInbox, onEdit }: Props) {
         {!expanded && sorted.length > 0 && (
           <div className="px-4 pb-4 flex gap-2 overflow-x-auto scrollbar-none">
             {sorted.slice(0, 4).map((t) => (
-              <InboxChip key={t.id} task={t} onEdit={onEdit} />
+              <InboxChip key={t.id} task={t} onEdit={onEdit} onTouchDrop={onTouchDrop} />
             ))}
           </div>
         )}
 
         {/* Full list */}
         {expanded && (
-          <div className="px-4 pb-6 flex flex-col gap-2 max-h-72 overflow-y-auto">
+          <div className="px-3 pb-3 flex flex-col gap-1.5 max-h-44 overflow-y-auto">
             {sorted.length === 0 ? (
               <p className="text-center text-slate-400 text-[12px] py-4">
                 未配置のタスクはありません
               </p>
             ) : (
-              sorted.map((t) => <InboxChip key={t.id} task={t} onEdit={onEdit} />)
+              sorted.map((t) => <InboxChip key={t.id} task={t} onEdit={onEdit} onTouchDrop={onTouchDrop} />)
             )}
             <p className="text-center text-[10px] text-slate-300 pt-1">
               ドラッグしてタイムラインに配置
