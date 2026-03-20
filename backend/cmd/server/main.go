@@ -141,6 +141,7 @@ func main() {
 	r.POST("/ai/report/generate", reportHandler.GenerateReport)
 
 	// Reflections（振り返りAI対話）
+	r.GET("/reflections", reflectionHandler.GetAll)
 	r.GET("/reflections/today", reflectionHandler.GetToday)
 	r.GET("/reflections/:id/messages", reflectionHandler.GetMessages)
 	r.GET("/ai/reflection/stream", reflectionHandler.Stream)

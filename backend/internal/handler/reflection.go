@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	"github.com/salmon-ai/salmon-ai/pkg/ratelimit"
 	"github.com/salmon-ai/salmon-ai/pkg/sse"
 )
+
+// streamLimiter は /ai/reflection/stream のユーザーごとのレートリミッターです。
+// Gemini 2.0 Flash の無料枠 (15 RPM) に余裕を持たせ、15秒に1回に制限します。
+var streamLimiter = ratelimit.New(15 * time.Second)
 
 type ReflectionHandler struct {
 	svc *service.ReflectionService
@@ -16,6 +22,24 @@ type ReflectionHandler struct {
 
 func NewReflectionHandler(svc *service.ReflectionService) *ReflectionHandler {
 	return &ReflectionHandler{svc: svc}
+}
+
+// GetAll GET /reflections
+// ユーザーの全振り返りを新しい順で返します。
+func (h *ReflectionHandler) GetAll(c *gin.Context) {
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	reflections, err := h.svc.GetAll(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, reflections)
 }
 
 // GetToday GET /reflections/today
@@ -82,6 +106,11 @@ func (h *ReflectionHandler) Stream(c *gin.Context) {
 	message := c.Query("message")
 	if message == "" {
 		sse.Send(c, "error: message is required")
+		return
+	}
+
+	if ok, wait := streamLimiter.Allow(userID); !ok {
+		sse.Send(c, fmt.Sprintf("ratelimit: %d秒後にお試しください", int(wait.Seconds())+1))
 		return
 	}
 
