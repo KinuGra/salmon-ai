@@ -182,9 +182,12 @@ export default function TaskListItem({ task, onEdit }: Props) {
                 {hasAlert && <span className="font-extrabold">！</span>}
               </button>
 
-              {/* ポップオーバー（ホバー領域が途切れないように透明なラッパーで余白を埋める） */}
+              {/* ポップオーバーの本体とホバー拡大領域 */}
               {popoverOpen && (
-                <div className="absolute right-0 top-full pt-2 z-50">
+                <div className="absolute right-0 top-[calc(100%-10px)] pt-4 z-50">
+                  {/* マウスの斜め移動などをカバーする透明なエリア。ポップオーバーの外側全体に余白を作る */}
+                  <div className="absolute -top-4 -left-12 -right-12 bottom-0 bg-transparent -z-10" />
+
                   <div
                     className="w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 relative cursor-auto"
                     onClick={(e) => e.stopPropagation()}
@@ -193,93 +196,93 @@ export default function TaskListItem({ task, onEdit }: Props) {
                     <div className="absolute -top-1.5 right-4 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45" />
 
                     <p className="text-[11px] font-bold text-slate-700 mb-2">
-                    AIの見積もり詳細
-                  </p>
+                      AIの見積もり詳細
+                    </p>
 
-                  {/* 比較 */}
-                  {task.estimated_hours != null ? (
-                    <div className="flex items-end justify-between mb-3">
-                      <div className="text-center">
-                        <p className="text-[9px] text-slate-400 mb-0.5">
-                          あなた
-                        </p>
-                        <p className="text-[18px] font-bold text-slate-800 leading-none tabular-nums">
-                          {task.estimated_hours}
-                          <span className="text-[10px] ml-0.5">h</span>
-                        </p>
-                      </div>
-                      <div
-                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                          (aiDiff ?? 0) > 0
-                            ? "text-amber-700 bg-amber-50"
-                            : (aiDiff ?? 0) < 0
-                              ? "text-blue-700 bg-blue-50"
-                              : "text-slate-600 bg-slate-100"
-                        }`}
-                      >
-                        {(aiDiff ?? 0) > 0 ? "+" : ""}
-                        {aiDiff?.toFixed(1)}h
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[9px] text-slate-400 mb-0.5">AI</p>
-                        <p
-                          className={`text-[18px] font-bold leading-none tabular-nums ${
-                            hasAlert
-                              ? isHighAlert
-                                ? "text-red-500"
-                                : "text-amber-500"
-                              : "text-indigo-600"
+                    {/* 比較 */}
+                    {task.estimated_hours != null ? (
+                      <div className="flex items-end justify-between mb-3">
+                        <div className="text-center">
+                          <p className="text-[9px] text-slate-400 mb-0.5">
+                            あなた
+                          </p>
+                          <p className="text-[18px] font-bold text-slate-800 leading-none tabular-nums">
+                            {task.estimated_hours}
+                            <span className="text-[10px] ml-0.5">h</span>
+                          </p>
+                        </div>
+                        <div
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                            (aiDiff ?? 0) > 0
+                              ? "text-amber-700 bg-amber-50"
+                              : (aiDiff ?? 0) < 0
+                                ? "text-blue-700 bg-blue-50"
+                                : "text-slate-600 bg-slate-100"
                           }`}
                         >
+                          {(aiDiff ?? 0) > 0 ? "+" : ""}
+                          {aiDiff?.toFixed(1)}h
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] text-slate-400 mb-0.5">AI</p>
+                          <p
+                            className={`text-[18px] font-bold leading-none tabular-nums ${
+                              hasAlert
+                                ? isHighAlert
+                                  ? "text-red-500"
+                                  : "text-amber-500"
+                                : "text-indigo-600"
+                            }`}
+                          >
+                            {task.ai_estimated_hours}
+                            <span className="text-[10px] ml-0.5">h</span>
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center mb-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[9px] text-slate-400 mb-1">
+                          AIの推定時間
+                        </p>
+                        <p className="text-[20px] font-bold text-indigo-600 leading-none tabular-nums">
                           {task.ai_estimated_hours}
-                          <span className="text-[10px] ml-0.5">h</span>
+                          <span className="text-[12px] ml-0.5">h</span>
                         </p>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center mb-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                      <p className="text-[9px] text-slate-400 mb-1">
-                        AIの推定時間
-                      </p>
-                      <p className="text-[20px] font-bold text-indigo-600 leading-none tabular-nums">
-                        {task.ai_estimated_hours}
-                        <span className="text-[12px] ml-0.5">h</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* AIの推論理由 */}
-                  {task.ai_estimation_reason ? (
-                    <div className="bg-slate-50 rounded-lg p-2 mb-3 max-h-32 overflow-y-auto custom-scrollbar">
-                      <p className="text-[10px] text-slate-600 leading-relaxed whitespace-pre-wrap">
-                        {task.ai_estimation_reason}
-                      </p>
-                    </div>
-                  ) : (
-                    hasAlert && (
-                      <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
-                        {isHighAlert
-                          ? "大幅な乖離があります。見積もりの見直しを推奨します。"
-                          : "やや差があります。余裕を持った計画を検討してください。"}
-                      </p>
-                    )
-                  )}
-
-                  {/* 再見積もりボタン */}
-                  <button
-                    onClick={handleRetry}
-                    disabled={retrying}
-                    className="w-full py-2 rounded-xl text-[11px] font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                  >
-                    {retrying ? (
-                      <>
-                        <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        再見積もり中...
-                      </>
-                    ) : (
-                      "✦ 再見積もり"
                     )}
-                  </button>
+
+                    {/* AIの推論理由 */}
+                    {task.ai_estimation_reason ? (
+                      <div className="bg-slate-50 rounded-lg p-2 mb-3 max-h-32 overflow-y-auto custom-scrollbar">
+                        <p className="text-[10px] text-slate-600 leading-relaxed whitespace-pre-wrap">
+                          {task.ai_estimation_reason}
+                        </p>
+                      </div>
+                    ) : (
+                      hasAlert && (
+                        <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
+                          {isHighAlert
+                            ? "大幅な乖離があります。見積もりの見直しを推奨します。"
+                            : "やや差があります。余裕を持った計画を検討してください。"}
+                        </p>
+                      )
+                    )}
+
+                    {/* 再見積もりボタン */}
+                    <button
+                      onClick={handleRetry}
+                      disabled={retrying}
+                      className="w-full py-2 rounded-xl text-[11px] font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                    >
+                      {retrying ? (
+                        <>
+                          <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          再見積もり中...
+                        </>
+                      ) : (
+                        "✦ 再見積もり"
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
