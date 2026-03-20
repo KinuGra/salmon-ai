@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 
-app = FastAPI()
+from app.routers.report import router as report_router
+
+app = FastAPI(title="salmon-ai AI Service")
+
+# ── ルーター登録 ──────────────────────────────────────────────
+app.include_router(report_router)
 
 
 @app.get("/health")
