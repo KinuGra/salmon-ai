@@ -12,9 +12,8 @@ import (
 )
 
 type Client struct {
-	BaseURL          string
-	HTTPClient       *http.Client
-	streamHTTPClient *http.Client
+	BaseURL    string
+	HTTPClient *http.Client
 }
 
 func NewClient() *Client {
@@ -23,13 +22,16 @@ func NewClient() *Client {
 		baseURL = "http://ai:8000"
 	}
 
+	// ResponseHeaderTimeout: ヘッダー受信までのタイムアウト（ボディ読み取りは対象外）
+	// → 通常リクエストは30秒以内にヘッダーが来ることを保証しつつ、
+	//   ストリーミングのボディ読み取りは無制限で継続できる
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 30 * time.Second
+
 	return &Client{
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		streamHTTPClient: &http.Client{
-			Timeout: 0, // ストリーミングはタイムアウトなし
+			Transport: transport,
 		},
 	}
 }
@@ -115,7 +117,7 @@ func (c *Client) Stream(path string, body any, callback func([]byte)) error {
 		return fmt.Errorf("failed to join url: %w", err)
 	}
 
-	resp, err := c.streamHTTPClient.Post(
+	resp, err := c.HTTPClient.Post(
 		targetURL,
 		"application/json",
 		bytes.NewBuffer(jsonBody),
