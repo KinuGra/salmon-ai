@@ -32,13 +32,22 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
         user_message=req.user_message,
     )
 
-    for chunk in client.models.generate_content_stream(
-        model="gemini-2.0-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.7,
-            max_output_tokens=1024,
-        ),
-    ):
-        if chunk.text:
-            yield chunk.text
+    import google.genai.errors
+    try:
+        for chunk in client.models.generate_content_stream(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=1024,
+            ),
+        ):
+            if chunk.text:
+                yield chunk.text
+    except google.genai.errors.ClientError as e:
+        if getattr(e, "code", None) == 429:
+            yield "\n\n申し訳ありません。AIの利用制限（レートリミット）に達しました。しばらく時間をおいてから再度お試しください。"
+        else:
+            yield f"\n\nAI処理中にエラーが発生しました。({getattr(e, 'code', 'unknown')})"
+    except Exception as e:
+        yield f"\n\n予期せぬエラーが発生しました: {str(e)}"
