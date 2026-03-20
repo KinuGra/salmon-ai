@@ -1,7 +1,8 @@
 import os
 from typing import Generator
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.prompts.reflection import REFLECTION_PROMPT
 from app.schemas.reflection import ReflectionRequest
@@ -16,15 +17,7 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
     if not api_key:
         raise ValueError("GEMINI_API_KEY environment variable is not set")
 
-    genai.configure(api_key=api_key)
-
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        generation_config=genai.GenerationConfig(
-            temperature=0.7,
-            max_output_tokens=1024,
-        ),
-    )
+    client = genai.Client(api_key=api_key)
 
     # 会話履歴を読みやすいテキストに変換
     history_lines = []
@@ -39,7 +32,13 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
         user_message=req.user_message,
     )
 
-    response = model.generate_content(prompt, stream=True)
-    for chunk in response:
+    for chunk in client.models.generate_content_stream(
+        model="gemini-2.0-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.7,
+            max_output_tokens=1024,
+        ),
+    ):
         if chunk.text:
             yield chunk.text
