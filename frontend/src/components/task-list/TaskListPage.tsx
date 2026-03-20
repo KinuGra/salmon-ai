@@ -516,6 +516,18 @@ export default function TaskListPage() {
     } catch (e) { console.error("タスク削除エラー:", e); }
   }
 
+  async function handleToggleComplete(task: Task) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_completed: !task.is_completed }),
+      });
+      const saved: Task = await res.json();
+      setTasks((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
+    } catch (e) { console.error("タスク更新エラー:", e); }
+  }
+
   async function handleAddTask(task: Task, categoryId: number | null) {
     try {
       const res = await fetch(`${API_BASE}/tasks`, {
@@ -648,7 +660,7 @@ export default function TaskListPage() {
         ) : (
           <div className="flex flex-col gap-2.5">
             {sorted.map((task) => (
-              <TaskListItem key={task.id} task={task} onEdit={() => setEditingTask(task)} />
+              <TaskListItem key={task.id} task={task} onEdit={() => setEditingTask(task)} onToggleComplete={() => handleToggleComplete(task)} />
             ))}
           </div>
         )}

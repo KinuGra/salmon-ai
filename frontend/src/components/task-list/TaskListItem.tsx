@@ -9,9 +9,9 @@ import {
   dueDateMeta,
 } from "./utils";
 
-type Props = { task: Task; onEdit?: () => void };
+type Props = { task: Task; onEdit?: () => void; onToggleComplete?: () => void };
 
-export default function TaskListItem({ task, onEdit }: Props) {
+export default function TaskListItem({ task, onEdit, onToggleComplete }: Props) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -64,6 +64,25 @@ export default function TaskListItem({ task, onEdit }: Props) {
         className="w-1 shrink-0 rounded-l-xl"
         style={{ background: hexToSolid(color, task.is_completed ? 0.3 : 0.7) }}
       />
+
+      {/* 完了チェックボタン */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleComplete?.(); }}
+        className="shrink-0 self-center w-7 h-7 ml-2 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+        aria-label={task.is_completed ? "未完了に戻す" : "完了にする"}
+      >
+        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+          task.is_completed
+            ? "bg-emerald-500 border-emerald-500"
+            : "border-slate-300 hover:border-emerald-400"
+        }`}>
+          {task.is_completed && (
+            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </div>
+      </button>
 
       {/* メインコンテンツ */}
       <div className="flex-1 min-w-0 px-4 py-3.5 flex gap-3 items-start">
