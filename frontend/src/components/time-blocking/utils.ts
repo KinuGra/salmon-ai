@@ -54,5 +54,6 @@ export function topToIso(top: number, baseDate: Date): string {
   const minutes = roundedMins % 60;
   const d = new Date(baseDate);
   d.setHours(hours, minutes, 0, 0);
-  return d.toISOString();
+  // Go の time.RFC3339 はミリ秒なし形式のみ受け付けるため除去
+  return d.toISOString().slice(0, 19) + "Z";
 }

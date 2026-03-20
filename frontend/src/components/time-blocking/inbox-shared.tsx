@@ -23,6 +23,9 @@ export function InboxChip({ task }: { task: Task }) {
     // D&D でドロップ先にタスクIDを渡す
     e.dataTransfer.setData("taskId", String(task.id));
     e.dataTransfer.effectAllowed = "move";
+    // dragover 中に dataTransfer.getData が使えないため window に退避
+    const durationMins = task.estimated_hours ? Math.round(task.estimated_hours * 60) : 30;
+    (window as any).__dragInfo = { durationMins, grabOffset: 0 };
   }
   const color = task.category?.color ?? "#94a3b8";
   const today = new Date();

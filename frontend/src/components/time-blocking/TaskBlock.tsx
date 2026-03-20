@@ -191,15 +191,18 @@ function AiAlertPopover({
 // タスクブロック本体
 // ────────────────────────────────────────────
 export default function TaskBlock({ task, onAchievementChange }: Props) {
-  if (!task.start_time || !task.end_time) return null;
+  const [isDragging, setIsDragging] = useState(false);
+
+  if (!task.start_time) return null;
+  if (!task.end_time && task.estimated_hours == null) return null;
 
   const top = isoToTop(task.start_time);
   const startLabel = isoToLabel(task.start_time);
-  const endLabel = isoToLabel(task.end_time);
+  const endLabel = task.end_time ? isoToLabel(task.end_time) : null;
 
-  const durationMins =
-    (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) /
-    60000;
+  const durationMins = task.end_time
+    ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+    : (task.estimated_hours ?? 0) * 60;
   const height = Math.max(durationMins * PX_PER_MIN, 36);
 
   const color = task.category?.color ?? "#94a3b8";
@@ -218,10 +221,12 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
   const isHighAlert = aiDiff !== null && Math.abs(aiDiff) >= 1.5;
 
   const now = new Date();
+  const startTime = new Date(task.start_time);
+  const endTime = task.end_time
+    ? new Date(task.end_time)
+    : new Date(startTime.getTime() + durationMins * 60000);
   const isActive =
-    !task.is_completed &&
-    now >= new Date(task.start_time) &&
-    now <= new Date(task.end_time);
+    !task.is_completed && now >= startTime && now <= endTime;
 
   const isCompact = height < 52;
 
@@ -231,14 +236,20 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("taskId", String(task.id));
-        // タイムライン上のタスクであることを示す（インボックスのD&Dと区別）
         e.dataTransfer.setData("dragType", "scheduled");
-        // ブロック内のどこを掴んだか（Y方向オフセット）を渡す
         const rect = e.currentTarget.getBoundingClientRect();
         const grabOffset = Math.round(e.clientY - rect.top);
         e.dataTransfer.setData("grabOffset", String(grabOffset));
         e.dataTransfer.effectAllowed = "move";
+        // dragover 中に dataTransfer.getData が使えないため window に退避
+        const durationMins = task.end_time && task.start_time
+          ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+          : (task.estimated_hours ?? 0.5) * 60;
+        (window as any).__dragInfo = { durationMins: Math.round(durationMins), grabOffset };
+        // ghost 画像が capture された後に元ブロックを非表示にする
+        setTimeout(() => setIsDragging(true), 0);
       }}
+      onDragEnd={() => setIsDragging(false)}
       className="absolute left-0 right-1 rounded-xl overflow-visible transition-all flex flex-col cursor-grab active:cursor-grabbing"
       style={{
         top,
@@ -248,6 +259,7 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         boxShadow: isActive
           ? `0 0 0 2px ${hexToMedium(color, 0.35)}, 0 0 14px ${hexToPastel(color, 0.5)}`
           : "0 1px 3px rgba(0,0,0,0.06)",
+        opacity: isDragging ? 0 : 1,
       }}
     >
       {/* ── 上段: 時刻・タイトル・セグメント ── */}

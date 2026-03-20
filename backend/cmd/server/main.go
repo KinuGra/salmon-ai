@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/salmon-ai/salmon-ai/internal/middleware"
 	"github.com/salmon-ai/salmon-ai/internal/handler"
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
@@ -79,10 +80,26 @@ func main() {
 	userHandler := handler.NewUserHandler(userSvc)
 	reportHandler := handler.NewReportHandler(reportSvc)
 
+	// ミドルウェアの登録
 	r := gin.Default()
+	r.Use(middleware.CORS())
+	r.Use(middleware.MockAuth(mockUser.ID))
+
+	// 暫定CORSミドルウェア（pan担当の本番ミドルウェアに後で置き換える）
+	r.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
 
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		userID, _ := c.Get("userID")
+		c.JSON(200, gin.H{"status": "ok", "userID": userID,})
 	})
 
 	// Tasks
