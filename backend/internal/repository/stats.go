@@ -47,7 +47,10 @@ func (r *StatsRepository) GetStats(userID uint, from, to time.Time) (StatsData, 
 	// 完了タスク数
 	var completedCount int64
 	if err := r.db.Model(&model.Task{}).
-		Where("user_id = ? AND is_completed = true AND start_time >= ? AND start_time < ?", userID, from, to).
+		Where("user_id = ?", userID).
+		Where("is_completed = ?", true).
+		Where("start_time >= ?", from).
+		Where("start_time < ?", to).
 		Count(&completedCount).Error; err != nil {
 		return data, err
 	}
@@ -61,7 +64,10 @@ func (r *StatsRepository) GetStats(userID uint, from, to time.Time) (StatsData, 
 	var results []achResult
 	if err := r.db.Model(&model.Task{}).
 		Select("achievement_rate, count(*) as count").
-		Where("user_id = ? AND achievement_rate IS NOT NULL AND start_time >= ? AND start_time < ?", userID, from, to).
+		Where("user_id = ?", userID).
+		Where("achievement_rate IS NOT NULL").
+		Where("start_time >= ?", from).
+		Where("start_time < ?", to).
 		Group("achievement_rate").
 		Scan(&results).Error; err != nil {
 		return data, err
@@ -73,7 +79,11 @@ func (r *StatsRepository) GetStats(userID uint, from, to time.Time) (StatsData, 
 	// タスクリストでチェックされた（is_completed=true かつ achievement_rate 未設定）タスクを 100% として計上
 	var completedNoRate int64
 	if err := r.db.Model(&model.Task{}).
-		Where("user_id = ? AND is_completed = true AND achievement_rate IS NULL AND start_time >= ? AND start_time < ?", userID, from, to).
+		Where("user_id = ?", userID).
+		Where("is_completed = ?", true).
+		Where("achievement_rate IS NULL").
+		Where("start_time >= ?", from).
+		Where("start_time < ?", to).
 		Count(&completedNoRate).Error; err != nil {
 		return data, err
 	}
