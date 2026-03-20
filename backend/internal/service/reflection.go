@@ -31,6 +31,11 @@ func NewReflectionService(
 	}
 }
 
+// GetAll はユーザーの全振り返りを新しい順で返します。
+func (s *ReflectionService) GetAll(userID uint) ([]model.Reflection, error) {
+	return s.reflectionRepo.FindAllByUserID(userID)
+}
+
 // GetOrCreateToday は今日の振り返りを取得し、なければ作成して返します。
 func (s *ReflectionService) GetOrCreateToday(userID uint) (*model.Reflection, error) {
 	today := time.Now().Truncate(24 * time.Hour)
