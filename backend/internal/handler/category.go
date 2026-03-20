@@ -28,14 +28,9 @@ type UpdateCategoryRequest struct {
 }
 
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
+	userID, exists := getUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
 		return
 	}
 
@@ -48,14 +43,9 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 }
 
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
+	userID, exists := getUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
 		return
 	}
 
@@ -79,14 +69,9 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 }
 
 func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
+	userID, exists := getUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
 		return
 	}
 
@@ -111,14 +96,9 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 }
 
 func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
+	userID, exists := getUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
 		return
 	}
 

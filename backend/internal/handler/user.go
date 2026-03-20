@@ -21,14 +21,9 @@ type UpdateUserProfileRequest struct {
 }
 
 func (h *UserHandler) GetProfile(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
+	userID, exists := getUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
 		return
 	}
 
@@ -41,14 +36,9 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 }
 
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-	userIDVal, exists := c.Get("userID")
+	userID, exists := getUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
 		return
 	}
 
