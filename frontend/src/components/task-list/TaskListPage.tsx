@@ -503,6 +503,7 @@ export default function TaskListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: updated.title, description: updated.description, priority: updated.priority, estimated_hours: updated.estimated_hours, due_date: updated.due_date, category_id: categoryId }),
       });
+      if (!res.ok) { console.error("タスク更新エラー:", res.status, await res.text()); return; }
       const saved: Task = await res.json();
       setTasks((prev: Task[]) => prev.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) { console.error("タスク更新エラー:", e); }
@@ -510,7 +511,8 @@ export default function TaskListPage() {
 
   async function handleDeleteTask(id: number) {
     try {
-      await fetch(`${API_BASE}/tasks/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/tasks/${id}`, { method: "DELETE" });
+      if (!res.ok) { console.error("タスク削除エラー:", res.status, await res.text()); return; }
       setTasks((prev: Task[]) => prev.filter((t) => t.id !== id));
       setEditingTask(null);
     } catch (e) { console.error("タスク削除エラー:", e); }
@@ -523,6 +525,7 @@ export default function TaskListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_completed: !task.is_completed }),
       });
+      if (!res.ok) { console.error("タスク更新エラー:", res.status, await res.text()); return; }
       const saved: Task = await res.json();
       setTasks((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) { console.error("タスク更新エラー:", e); }
@@ -542,6 +545,7 @@ export default function TaskListPage() {
           category_id: categoryId,
         }),
       });
+      if (!res.ok) { console.error("タスク追加エラー:", res.status, await res.text()); return; }
       const created: Task = await res.json();
       setTasks((prev: Task[]) => [created, ...prev]);
     } catch (e) {
