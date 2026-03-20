@@ -62,14 +62,6 @@ function GrassGraph() {
     cols.push(week);
   }
 
-  // 月ラベル（列ごとに月が変わったら表示）
-  const monthLabels: (string | null)[] = cols.map((col, i) => {
-    const month = col[0].getMonth();
-    if (i === 0) return `${col[0].getMonth() + 1}月`;
-    if (cols[i - 1][0].getMonth() !== month) return `${month + 1}月`;
-    return null;
-  });
-
   function grassColor(count: number): string {
     if (count === 0) return "bg-slate-100";
     if (count === 1) return "bg-emerald-200";
@@ -79,7 +71,7 @@ function GrassGraph() {
   }
 
   const todayStr = toDateStr(today);
-  const dayLabels = ["月", "", "水", "", "金", "", "日"];
+  const dayLabels = ["月", "", "水", "", "金", "", ""];
 
   return (
     <div className="overflow-x-auto">
@@ -96,12 +88,6 @@ function GrassGraph() {
         {/* 週列 */}
         {cols.map((col, ci) => (
           <div key={ci} className="flex flex-col gap-[3px]">
-            {/* 月ラベル */}
-            <div className="h-4 flex items-end">
-              <span className="text-[9px] text-slate-400 leading-none whitespace-nowrap">
-                {monthLabels[ci] ?? ""}
-              </span>
-            </div>
             {/* 日マス */}
             {col.map((date, di) => {
               const str = toDateStr(date);
@@ -273,13 +259,13 @@ export default function StatsPage() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex gap-6">
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[11px] text-slate-400">完了タスク</span>
-                  <span className="text-[22px] font-bold text-slate-700 tabular-nums">{stats.previous.completed_count}</span>
+                  <span className="text-[22px] font-bold text-slate-700 tabular-nums">{stats.current.completed_count}</span>
                   <DiffBadge current={stats.current.completed_count} previous={stats.previous.completed_count} periodLabel={periodLabel} />
                 </div>
                 <div className="w-px bg-slate-100" />
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[11px] text-slate-400">活動日数</span>
-                  <span className="text-[22px] font-bold text-slate-700 tabular-nums">{stats.previous.grass_count}</span>
+                  <span className="text-[22px] font-bold text-slate-700 tabular-nums">{stats.current.grass_count}</span>
                   <DiffBadge current={stats.current.grass_count} previous={stats.previous.grass_count} periodLabel={periodLabel} />
                 </div>
               </div>
