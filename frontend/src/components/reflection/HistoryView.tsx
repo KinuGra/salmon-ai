@@ -90,6 +90,7 @@ function HistoryItem({
 }) {
   const msgCount = messages.length;
   const hasMessages = msgCount > 0;
+  const date = new Date(reflection.date + "T00:00:00");
 
   return (
     <div className="border-b border-slate-100 last:border-b-0">
@@ -111,17 +112,14 @@ function HistoryItem({
                 isExpanded ? "text-white" : "text-slate-700"
               }`}
             >
-              {new Date(reflection.date + "T00:00:00").getDate()}
+              {date.getDate()}
             </span>
             <span
               className={`text-[9px] font-semibold leading-none mt-0.5 ${
                 isExpanded ? "text-indigo-200" : "text-slate-400"
               }`}
             >
-              {new Date(reflection.date + "T00:00:00").toLocaleDateString(
-                "ja-JP",
-                { month: "numeric" }
-              )}月
+              {date.toLocaleDateString("ja-JP", { month: "numeric" })}月
             </span>
           </div>
 
