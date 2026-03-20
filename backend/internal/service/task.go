@@ -1,11 +1,14 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
+	"github.com/salmon-ai/salmon-ai/pkg/aiclient"
 )
 
 type TaskService struct {
@@ -36,7 +39,12 @@ func (s *TaskService) GetUnscheduledTasks(userID uint) ([]model.Task, error) {
 
 func (s *TaskService) CreateTask(task *model.Task) error {
 	// AI見積もり用のリクエストを準備
-	reqPayload := AIEstimateRequest{
+	reqPayload := struct {
+		Title       string  `json:"title"`
+		Description *string `json:"description,omitempty"`
+		Category    *string `json:"category,omitempty"`
+		UserContext *string `json:"user_context,omitempty"`
+	}{
 		Title:       task.Title,
 		Description: task.Description,
 	}
@@ -62,9 +70,19 @@ func (s *TaskService) CreateTask(task *model.Task) error {
 		}
 	}
 
-	// AIに見積もりをリクエストし、結果をタスクにセット
-	if resp, err := callAIEstimate(reqPayload); err == nil && resp != nil {
-		task.AiEstimatedHours = &resp.EstimatedHours
+	// aiclientを使ってAIに見積もりをリクエストし、結果をタスクにセット
+	client := aiclient.NewClient()
+	if data, err := client.Post("/estimate", reqPayload); err == nil {
+		var aiResp struct {
+			EstimatedHours float64 `json:"estimated_hours"`
+			Reasoning      string  `json:"reasoning"`
+		}
+		if err := json.Unmarshal(data, &aiResp); err == nil {
+			task.AiEstimatedHours = &aiResp.EstimatedHours
+			fmt.Printf("[AI Estimate Result] Title: %s -> %.1fh (Reason: %s)\n", task.Title, aiResp.EstimatedHours, aiResp.Reasoning)
+		} else {
+			log.Printf("AI見積もりレスポンスのパースに失敗しました: %v", err)
+		}
 	} else {
 		log.Printf("AI見積もりの取得に失敗しました: %v", err)
 	}
