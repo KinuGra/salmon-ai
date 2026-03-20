@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	"gorm.io/gorm/clause"
 )
 
 type TaskHandler struct {
@@ -19,11 +20,12 @@ func NewTaskHandler(svc *service.TaskService) *TaskHandler {
 }
 
 type CreateTaskRequest struct {
-	Title       string  `json:"title" binding:"required"`
-	Description *string `json:"description"`
-	Priority    *int    `json:"priority"`
-	CategoryID  *uint   `json:"category_id"`
-	DueDate     *string `json:"due_date"`
+	Title          string   `json:"title" binding:"required"`
+	Description    *string  `json:"description"`
+	Priority       *int     `json:"priority"`
+	CategoryID     *uint    `json:"category_id"`
+	DueDate        *string  `json:"due_date"`
+	EstimatedHours *float64 `json:"estimated_hours"`
 }
 
 type UpdateTaskRequest struct {
@@ -34,6 +36,8 @@ type UpdateTaskRequest struct {
 	DueDate         *string  `json:"due_date"`
 	StartTime       *string  `json:"start_time"`
 	EndTime         *string  `json:"end_time"`
+	ClearStartTime  *bool    `json:"clear_start_time"`
+	ClearEndTime    *bool    `json:"clear_end_time"`
 	EstimatedHours  *float64 `json:"estimated_hours"`
 	IsCompleted     *bool    `json:"is_completed"`
 	AchievementRate *int     `json:"achievement_rate"`
@@ -42,6 +46,15 @@ type UpdateTaskRequest struct {
 // TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
 func getUserID() uint {
 	return uint(1)
+}
+
+func parseTime(s string) (time.Time, error) {
+	t, err := time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t, nil
+	}
+	// ミリ秒付きの ISO 文字列にも対応
+	return time.Parse("2006-01-02T15:04:05.999Z07:00", s)
 }
 
 func (h *TaskHandler) GetTasks(c *gin.Context) {
@@ -92,11 +105,12 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	task := &model.Task{
-		UserID:      userID,
-		Title:       req.Title,
-		Description: req.Description,
-		Priority:    req.Priority,
-		CategoryID:  req.CategoryID,
+		UserID:         userID,
+		Title:          req.Title,
+		Description:    req.Description,
+		Priority:       req.Priority,
+		CategoryID:     req.CategoryID,
+		EstimatedHours: req.EstimatedHours,
 	}
 
 	if req.DueDate != nil {
@@ -163,8 +177,10 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		fields["due_date"] = t
 	}
 
-	if req.StartTime != nil {
-		t, err := time.Parse(time.RFC3339, *req.StartTime)
+	if req.ClearStartTime != nil && *req.ClearStartTime {
+		fields["start_time"] = clause.Expr{SQL: "NULL"}
+	} else if req.StartTime != nil {
+		t, err := parseTime(*req.StartTime)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format"})
 			return
@@ -172,8 +188,10 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		fields["start_time"] = t
 	}
 
-	if req.EndTime != nil {
-		t, err := time.Parse(time.RFC3339, *req.EndTime)
+	if req.ClearEndTime != nil && *req.ClearEndTime {
+		fields["end_time"] = clause.Expr{SQL: "NULL"}
+	} else if req.EndTime != nil {
+		t, err := parseTime(*req.EndTime)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format"})
 			return

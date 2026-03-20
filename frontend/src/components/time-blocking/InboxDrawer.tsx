@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Task } from "./types";
 import { hexToPastel, hexToMedium } from "./utils";
+import { useInboxDropZone } from "./useInboxDropZone";
 
 const PRIORITY_LABEL: Record<number, string> = { 1: "高", 2: "中", 3: "低" };
 const PRIORITY_COLOR: Record<number, string> = {
@@ -20,9 +21,17 @@ function InboxChip({ task }: { task: Task }) {
   const isOverdue = due && due < today;
   const isDueToday = due && due.getTime() === today.getTime();
 
+  function handleDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData("taskId", String(task.id));
+    e.dataTransfer.effectAllowed = "move";
+    const durationMins = task.estimated_hours ? Math.round(task.estimated_hours * 60) : 30;
+    (window as any).__dragInfo = { durationMins, grabOffset: 0 };
+  }
+
   return (
     <div
       draggable
+      onDragStart={handleDragStart}
       className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
       style={{
         background: hexToPastel(color, 0.15),
@@ -85,10 +94,15 @@ function sortInbox(tasks: Task[]): Task[] {
   });
 }
 
-type Props = { tasks: Task[] };
+type Props = {
+  tasks: Task[];
+  onReturnToInbox: (taskId: number) => void;
+};
 
-export default function InboxDrawer({ tasks }: Props) {
+export default function InboxDrawer({ tasks, onReturnToInbox }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const { isDragOver, handleDragOver, handleDragLeave, handleDrop } =
+    useInboxDropZone({ onReturnToInbox });
   const sorted = sortInbox(tasks);
 
   return (
@@ -96,10 +110,17 @@ export default function InboxDrawer({ tasks }: Props) {
     <div
       className="fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 ease-out lg:hidden"
       style={{ maxWidth: 480, margin: "0 auto" }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       {/* Handle + header */}
       <div
-        className="bg-white/95 backdrop-blur-sm border-t border-slate-200 rounded-t-2xl shadow-2xl"
+        className={`backdrop-blur-sm border-t rounded-t-2xl shadow-2xl transition-colors ${
+          isDragOver
+            ? "bg-indigo-50/95 border-indigo-300"
+            : "bg-white/95 border-slate-200"
+        }`}
         style={{ boxShadow: "0 -8px 32px rgba(0,0,0,0.1)" }}
       >
         <button

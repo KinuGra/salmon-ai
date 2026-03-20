@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Task } from "./types";
-import { MOCK_TASKS } from "./mock-data";
+
+const API_BASE = "http://localhost:8080";
 import {
   PX_PER_MIN,
   TIMELINE_START_HOUR,
@@ -199,11 +200,25 @@ function AIModal({ onClose }: { onClose: () => void }) {
 // メインページ
 // ────────────────────────────────────────────
 export default function TimeBlockingPage() {
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  function showError(msg: string) {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(null), 4000);
+  }
+
   const [showAI, setShowAI] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  // D&D中のドロップ位置インジケーター（top px）
-  const [dropIndicator, setDropIndicator] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/tasks`)
+      .then((r) => r.json())
+      .then((data: Task[]) => setTasks(data))
+      .catch((e) => console.error("タスク取得エラー:", e));
+  }, [selectedDate]);
+  // D&D中のドロップ位置インジケーター（top/bottom px）
+  const [dropIndicator, setDropIndicator] = useState<{ top: number; bottom: number } | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
@@ -218,26 +233,33 @@ export default function TimeBlockingPage() {
   );
   const inbox = tasks.filter((t) => t.start_time === null);
 
-  // ② 日付変更検知: 本番では GET /tasks?date=YYYY-MM-DD を呼ぶ
-  useEffect(() => {
-    const dateParam = selectedDate.toISOString().slice(0, 10);
-    // TODO: useQuery({ queryKey: ["tasks", dateParam], ... }) に置き換える
-    console.log("[API] GET /tasks?date=", dateParam);
-  }, [selectedDate]);
 
   function handleDateChange(d: Date) {
     setSelectedDate(d);
   }
 
   // 達成度変更
-  function handleAchievementChange(id: number, value: number) {
-    setTasks((prev) =>
-      prev.map((t) =>
+  async function handleAchievementChange(id: number, value: number) {
+    const originalTasks = tasks;
+    setTasks((prev: Task[]) =>
+      prev.map((t: Task) =>
         t.id === id
-          ? { ...t, achievement_rate: value, is_completed: value === 100 }
+          ? { ...t, achievement_rate: value, ...(value === 100 ? { is_completed: true } : {}) }
           : t
       )
     );
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ achievement_rate: value }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+    } catch (e) {
+      console.error("達成度更新エラー:", e);
+      setTasks(originalTasks);
+      showError("達成度を更新できませんでした。");
+    }
   }
 
   // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
@@ -247,9 +269,12 @@ export default function TimeBlockingPage() {
     if (!timelineRef.current) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const rawTop = e.clientY - rect.top;
-    // 15分単位に丸めた top を表示
-    const snappedTop = Math.round(rawTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
-    setDropIndicator(snappedTop);
+    const dragInfo = (window as any).__dragInfo ?? { durationMins: 30, grabOffset: 0 };
+    // grabOffset を考慮してブロック上端の位置を計算し、15分単位に丸める
+    const adjustedTop = rawTop - dragInfo.grabOffset;
+    const snappedTop = Math.round(adjustedTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
+    const snappedBottom = snappedTop + dragInfo.durationMins * PX_PER_MIN;
+    setDropIndicator({ top: snappedTop, bottom: snappedBottom });
   }, []);
 
   const handleDragLeave = useCallback(() => {
@@ -260,7 +285,7 @@ export default function TimeBlockingPage() {
   function calculateDefaultEndTime(startTime: string): string {
     const end = new Date(startTime);
     end.setMinutes(end.getMinutes() + 30);
-    return end.toISOString();
+    return end.toISOString().slice(0, 19) + "Z";
   }
 
   // ③ D&D: ドロップ → start_time / end_time を計算してオプティミスティック更新
@@ -291,30 +316,68 @@ export default function TimeBlockingPage() {
           const durationMs =
             new Date(existing.end_time).getTime() -
             new Date(existing.start_time).getTime();
-          end = new Date(new Date(start).getTime() + durationMs).toISOString();
+          end = new Date(new Date(start).getTime() + durationMs).toISOString().slice(0, 19) + "Z";
         } else {
           // フォールバック: 30分
           end = calculateDefaultEndTime(start);
         }
       } else {
-        // インボックスからのドロップ: デフォルト30分
+        // インボックスからのドロップ: estimated_hours を使って end_time を計算、なければ30分
         start = topToIso(rawTop, selectedDate);
-        end = calculateDefaultEndTime(start);
+        const droppedTask = tasks.find((t: Task) => t.id === taskId);
+        if (droppedTask?.estimated_hours) {
+          const endDate = new Date(start);
+          endDate.setMinutes(endDate.getMinutes() + droppedTask.estimated_hours * 60);
+          end = endDate.toISOString().slice(0, 19) + "Z";
+        } else {
+          end = calculateDefaultEndTime(start);
+        }
       }
 
       // オプティミスティック更新: 即座にUIへ反映
-      setTasks((prev) =>
-        prev.map((t) =>
+      const originalTasks = tasks;
+      setTasks((prev: Task[]) =>
+        prev.map((t: Task) =>
           t.id === taskId ? { ...t, start_time: start, end_time: end } : t
         )
       );
 
-      // TODO: 本番では TanStack Query の mutation に置き換える
-      // PUT /tasks/:id  { start_time: start, end_time: end }
-      console.log("[API] PUT /tasks/", taskId, { start_time: start, end_time: end });
+      fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_time: start, end_time: end }),
+      }).then((res) => {
+        if (!res.ok) throw new Error(`status ${res.status}`);
+      }).catch((e) => {
+        console.error("タイムブロック更新エラー:", e);
+        setTasks(originalTasks);
+        showError("タスクを移動できませんでした。");
+      });
     },
     [selectedDate, tasks]
   );
+
+  // インボックスへ戻す（start_time / end_time を null にする）
+  async function handleReturnToInbox(taskId: number) {
+    const originalTasks = tasks;
+    setTasks((prev: Task[]) =>
+      prev.map((t: Task) =>
+        t.id === taskId ? { ...t, start_time: null, end_time: null } : t
+      )
+    );
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clear_start_time: true, clear_end_time: true }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+    } catch (e) {
+      console.error("インボックス戻しエラー:", e);
+      setTasks(originalTasks);
+      showError("タスクをインボックスに戻せませんでした。");
+    }
+  }
 
   const totalHeight =
     (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60 * PX_PER_MIN;
@@ -327,6 +390,11 @@ export default function TimeBlockingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {errorMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white text-[12px] font-semibold px-4 py-2 rounded-xl shadow-lg pointer-events-none">
+          {errorMessage}
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="bg-white/90 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100 px-4 pt-3 pb-3">
@@ -407,23 +475,41 @@ export default function TimeBlockingPage() {
               );
             })}
 
-            {/* ③ D&D ドロップ位置インジケーター */}
+            {/* ③ D&D ドロップ位置インジケーター（上端・下端ライン + 半透明エリア） */}
             {dropIndicator !== null && (
-              <div
-                className="absolute left-9 right-0 z-30 pointer-events-none"
-                style={{ top: dropIndicator }}
-              >
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-indigo-400" />
-                  <div className="flex-1 h-0.5 bg-indigo-400 rounded-full" />
+              <>
+                {/* 半透明エリア */}
+                <div
+                  className="absolute left-9 right-0 z-29 pointer-events-none bg-indigo-200/40 rounded-lg"
+                  style={{ top: dropIndicator.top, height: dropIndicator.bottom - dropIndicator.top }}
+                />
+                {/* 上端ライン */}
+                <div
+                  className="absolute left-9 right-0 z-30 pointer-events-none"
+                  style={{ top: dropIndicator.top }}
+                >
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                    <div className="flex-1 h-0.5 bg-indigo-500 rounded-full" />
+                  </div>
                 </div>
-              </div>
+                {/* 下端ライン */}
+                <div
+                  className="absolute left-9 right-0 z-30 pointer-events-none"
+                  style={{ top: dropIndicator.bottom }}
+                >
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                    <div className="flex-1 h-0.5 bg-indigo-500 rounded-full" />
+                  </div>
+                </div>
+              </>
             )}
 
             {/* タスクブロック */}
             <div className="absolute left-10 right-0 top-0 bottom-0">
               <CurrentTimeLine />
-              {scheduled.map((task) => (
+              {scheduled.map((task: Task) => (
                 <TaskBlock
                   key={task.id}
                   task={task}
@@ -435,11 +521,11 @@ export default function TimeBlockingPage() {
         </div>
 
         {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
-        <InboxSidebar tasks={inbox} />
+        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} />
       </div>
 
       {/* モバイル専用インボックスDrawer（PCでは非表示） */}
-      <InboxDrawer tasks={inbox} />
+      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} />
 
       {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}
