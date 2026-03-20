@@ -209,9 +209,14 @@ export default function TimeBlockingPage() {
   }
 
   const [showAI, setShowAI] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   useEffect(() => {
+    setSelectedDate(new Date());
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDate) return;
     fetch(`${API_BASE}/tasks`)
       .then((r) => r.json())
       .then((data: Task[]) => setTasks(data))
@@ -230,7 +235,7 @@ export default function TimeBlockingPage() {
 
   // ③ 選択日付でタイムラインのタスクをフィルタリング
   // 本番では selectedDate を queryKey に含めた TanStack Query に置き換える
-  const selectedDateStr = selectedDate.toDateString();
+  const selectedDateStr = selectedDate?.toDateString() ?? "";
   const scheduled = tasks.filter(
     (t) =>
       t.start_time !== null &&
@@ -361,6 +366,8 @@ export default function TimeBlockingPage() {
     },
     [selectedDate, tasks]
   );
+
+  if (!selectedDate) return null;
 
   // インボックスへ戻す（start_time / end_time を null にする）
   async function handleReturnToInbox(taskId: number) {
