@@ -130,7 +130,7 @@ func (c *Client) Stream(path string, body any, callback func([]byte)) error {
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
-			callback(buf[:n])
+			callback(append([]byte{}, buf[:n]...))
 		}
 		if err == io.EOF {
 			break
