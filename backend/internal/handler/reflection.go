@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	"github.com/salmon-ai/salmon-ai/pkg/ratelimit"
 	"github.com/salmon-ai/salmon-ai/pkg/sse"
 )
+
+// streamLimiter は /ai/reflection/stream のユーザーごとのレートリミッターです。
+// Gemini 2.0 Flash の無料枠 (15 RPM) に余裕を持たせ、15秒に1回に制限します。
+var streamLimiter = ratelimit.New(15 * time.Second)
 
 type ReflectionHandler struct {
 	svc *service.ReflectionService
@@ -100,6 +106,11 @@ func (h *ReflectionHandler) Stream(c *gin.Context) {
 	message := c.Query("message")
 	if message == "" {
 		sse.Send(c, "error: message is required")
+		return
+	}
+
+	if ok, wait := streamLimiter.Allow(userID); !ok {
+		sse.Send(c, fmt.Sprintf("ratelimit: %d秒後にお試しください", int(wait.Seconds())+1))
 		return
 	}
 

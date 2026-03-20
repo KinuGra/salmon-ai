@@ -6,7 +6,7 @@ import MarkdownRenderer from "./MarkdownRenderer";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
-type Status = "idle" | "loading" | "done" | "error";
+type Status = "idle" | "loading" | "done" | "error" | "ratelimit";
 
 function formatDate(isoString: string): string {
   return new Date(isoString).toLocaleDateString("ja-JP", {
@@ -38,6 +38,11 @@ export default function ReportView({
     setStatus("loading");
     try {
       const res = await fetch(`${API_BASE}/ai/report/generate`, { method: "POST" });
+      if (res.status === 429) {
+        setStatus("ratelimit");
+        setTimeout(() => setStatus("idle"), 5000);
+        return;
+      }
       if (!res.ok) throw new Error(await res.text());
       const newReport: Report = await res.json();
       onReportGenerated(newReport);
@@ -100,6 +105,8 @@ export default function ReportView({
               ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
               : status === "error"
               ? "bg-red-50 text-red-500 border border-red-200"
+              : status === "ratelimit"
+              ? "bg-amber-50 text-amber-600 border border-amber-200"
               : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow-md"
           }`}
         >
@@ -117,6 +124,11 @@ export default function ReportView({
             <>
               <span className="text-[14px] leading-none">!</span>
               生成に失敗しました。再試行してください
+            </>
+          ) : status === "ratelimit" ? (
+            <>
+              <span className="text-[14px] leading-none">⏳</span>
+              しばらく時間をおいてから再試行してください
             </>
           ) : (
             <>

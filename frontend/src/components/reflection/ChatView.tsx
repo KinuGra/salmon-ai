@@ -101,10 +101,26 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
   const [showTutorial, setShowTutorial] = useState(true);
   const [isThinking, setIsThinking]     = useState(false);
   const [isStreaming, setIsStreaming]    = useState(false);
+  const [cooldown, setCooldown]         = useState(0); // 残り秒数
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const nextId      = useRef(1);
+
+  function startCooldown(seconds: number) {
+    setCooldown(seconds);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
 
   // 既存メッセージを読み込み
   useEffect(() => {
@@ -153,6 +169,20 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
     es.addEventListener("message", (e) => {
       const chunk: string = e.data;
 
+      if (chunk.startsWith("ratelimit:")) {
+        const msg = chunk.replace(/^ratelimit:\s*/, "");
+        const sec = parseInt(msg);
+        setIsThinking(false);
+        setIsStreaming(false);
+        if (!isNaN(sec)) startCooldown(sec);
+        setMessages((prev) => [
+          ...prev,
+          { id: aiMsgId, role: "assistant", content: `⏳ ${msg}` },
+        ]);
+        es.close();
+        return;
+      }
+
       if (chunk.startsWith("error:")) {
         setIsThinking(false);
         setIsStreaming(false);
@@ -195,7 +225,7 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
     }
   }
 
-  const isBusy  = isThinking || isStreaming;
+  const isBusy  = isThinking || isStreaming || cooldown > 0;
   const canSend = !!input.trim() && !isBusy && !!reflectionId;
 
   return (
@@ -239,8 +269,9 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              !reflectionId ? "読み込み中..." :
-              isBusy        ? "AIが返答中..." :
+              !reflectionId     ? "読み込み中..." :
+              cooldown > 0      ? `${cooldown}秒後に送信できます...` :
+              isThinking || isStreaming ? "AIが返答中..." :
               "今日のことを話してみよう... (Enterで送信)"
             }
             disabled={isBusy || !reflectionId}

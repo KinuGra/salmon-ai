@@ -2,12 +2,19 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	"github.com/salmon-ai/salmon-ai/pkg/ratelimit"
 	"gorm.io/gorm"
 )
+
+// reportLimiter は /ai/report/generate のユーザーごとのレートリミッターです。
+// レポート生成はトークン消費が多いため、60秒に1回に制限します。
+var reportLimiter = ratelimit.New(60 * time.Second)
 
 type ReportHandler struct {
 	svc *service.ReportService
@@ -56,6 +63,13 @@ func (h *ReportHandler) GenerateReport(c *gin.Context) {
 	userID, ok := userIDVal.(uint)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
+
+	if ok, wait := reportLimiter.Allow(userID); !ok {
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error": fmt.Sprintf("%d秒後に再試行してください", int(wait.Seconds())+1),
+		})
 		return
 	}
 
