@@ -342,6 +342,86 @@ export default function TimeBlockingPage() {
     }
   }
 
+  // タッチドロップ（スマホ対応）: clientY からタイムライン上の時刻を計算してタスクを配置
+  const handleTouchDrop = useCallback(
+    (taskId: number, clientY: number, dragType: "scheduled" | "inbox") => {
+      if (!timelineRef.current) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+
+      // インボックスゾーン上にドロップされたか判定（elementsFromPoint でz-indexに依存しない判定）
+      if (dragType === "scheduled") {
+        const clientX = (window as any).__lastDropClientX ?? window.innerWidth / 2;
+        const isOverInbox = document.elementsFromPoint(clientX, clientY)
+          .some((el) => (el as HTMLElement).dataset?.inboxDropZone === "true");
+        if (isOverInbox) {
+          const originalTasks = tasks;
+          setTasks((prev: Task[]) =>
+            prev.map((t: Task) => t.id === taskId ? { ...t, start_time: null, end_time: null } : t)
+          );
+          fetch(`${API_BASE}/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clear_start_time: true, clear_end_time: true }),
+          }).then((res) => {
+            if (!res.ok) throw new Error(`status ${res.status}`);
+          }).catch((e) => {
+            console.error("インボックス戻しエラー:", e);
+            setTasks(originalTasks);
+            showError("タスクをインボックスに戻せませんでした。");
+          });
+          return;
+        }
+      }
+
+      if (clientY < rect.top || clientY > rect.bottom) return;
+
+      const rawTop = clientY - rect.top;
+      const dragInfo = (window as any).__dragInfo ?? { durationMins: 30, grabOffset: 0 };
+
+      let start: string;
+      let end: string;
+
+      if (dragType === "scheduled") {
+        const adjustedTop = rawTop - dragInfo.grabOffset;
+        start = topToIso(adjustedTop, selectedDate);
+        const existing = tasks.find((t) => t.id === taskId);
+        if (existing?.start_time && existing?.end_time) {
+          const durationMs = new Date(existing.end_time).getTime() - new Date(existing.start_time).getTime();
+          end = new Date(new Date(start).getTime() + durationMs).toISOString().slice(0, 19) + "Z";
+        } else {
+          end = calculateDefaultEndTime(start);
+        }
+      } else {
+        start = topToIso(rawTop, selectedDate);
+        const droppedTask = tasks.find((t) => t.id === taskId);
+        if (droppedTask?.estimated_hours) {
+          const endDate = new Date(start);
+          endDate.setMinutes(endDate.getMinutes() + droppedTask.estimated_hours * 60);
+          end = endDate.toISOString().slice(0, 19) + "Z";
+        } else {
+          end = calculateDefaultEndTime(start);
+        }
+      }
+
+      const originalTasks = tasks;
+      setTasks((prev: Task[]) =>
+        prev.map((t: Task) => t.id === taskId ? { ...t, start_time: start, end_time: end } : t)
+      );
+      fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_time: start, end_time: end }),
+      }).then((res) => {
+        if (!res.ok) throw new Error(`status ${res.status}`);
+      }).catch((e) => {
+        console.error("タイムブロック更新エラー:", e);
+        setTasks(originalTasks);
+        showError("タスクを移動できませんでした。");
+      });
+    },
+    [selectedDate, tasks]
+  );
+
   // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -597,6 +677,7 @@ export default function TimeBlockingPage() {
                   task={task}
                   onAchievementChange={handleAchievementChange}
                   onEdit={setEditingTask}
+                  onTouchDrop={handleTouchDrop}
                 />
               ))}
             </div>
@@ -604,11 +685,11 @@ export default function TimeBlockingPage() {
         </div>
 
         {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
-        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} />
+        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} onTouchDrop={handleTouchDrop} />
       </div>
 
       {/* モバイル専用インボックスDrawer（PCでは非表示） */}
-      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} />
+      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} onTouchDrop={handleTouchDrop} />
 
       {/* AIモーダル */}
       {showAI && <AIModal onClose={() => setShowAI(false)} />}

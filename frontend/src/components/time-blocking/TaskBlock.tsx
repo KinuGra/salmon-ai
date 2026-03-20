@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Task } from "./types";
 import {
   PX_PER_MIN,
@@ -16,6 +16,7 @@ type Props = {
   task: Task;
   onAchievementChange: (id: number, value: number) => void;
   onEdit: (task: Task) => void;
+  onTouchDrop: (taskId: number, clientY: number, dragType: "scheduled" | "inbox") => void;
 };
 
 // ────────────────────────────────────────────
@@ -191,8 +192,75 @@ function AiAlertPopover({
 // ────────────────────────────────────────────
 // タスクブロック本体
 // ────────────────────────────────────────────
-export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) {
+export default function TaskBlock({ task, onAchievementChange, onEdit, onTouchDrop }: Props) {
   const [isDragging, setIsDragging] = useState(false);
+  const blockRef = useRef<HTMLDivElement>(null);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
+  const onTouchDropRef = useRef(onTouchDrop);
+  useEffect(() => { onTouchDropRef.current = onTouchDrop; }, [onTouchDrop]);
+
+  // ネイティブポインターイベントで touch drag を実装（React合成イベントより高速）
+  useEffect(() => {
+    const el = blockRef.current;
+    if (!el) return;
+    let active = false, startX = 0, startY = 0, grabOffset = 0, ghostLeft = 0, pid = -1;
+
+    function onDown(e: PointerEvent) {
+      if (e.pointerType === "mouse") return;
+      const rect = el.getBoundingClientRect();
+      active = false; pid = e.pointerId;
+      grabOffset = Math.round(e.clientY - rect.top);
+      ghostLeft = rect.left;
+      startX = e.clientX; startY = e.clientY;
+    }
+
+    function onMove(e: PointerEvent) {
+      if (e.pointerId !== pid) return;
+      if (!active) {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) < 8) return;
+        active = true;
+        el.setPointerCapture(pid);
+        const rect = el.getBoundingClientRect();
+        const clone = el.cloneNode(true) as HTMLElement;
+        const ty = e.clientY - grabOffset;
+        clone.style.cssText = `position:fixed;left:0;top:0;width:${rect.width}px;height:${rect.height}px;opacity:0.75;pointer-events:none;z-index:9999;border-radius:12px;transform:translate(${ghostLeft}px,${ty}px) scale(1.03);transform-origin:top left;box-shadow:0 8px 24px rgba(0,0,0,0.15);transition:none;`;
+        document.body.appendChild(clone);
+        ghostRef.current = clone;
+        setIsDragging(true);
+        const durationMins = task.end_time && task.start_time
+          ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+          : (task.estimated_hours ?? 0.5) * 60;
+        (window as any).__dragInfo = { durationMins: Math.round(durationMins), grabOffset };
+      }
+      if (ghostRef.current) {
+        ghostRef.current.style.transform = `translate(${ghostLeft}px,${e.clientY - grabOffset}px) scale(1.03)`;
+      }
+    }
+
+    function onUp(e: PointerEvent) {
+      if (e.pointerId !== pid) return;
+      const wasActive = active;
+      active = false; pid = -1;
+      if (ghostRef.current) { document.body.removeChild(ghostRef.current); ghostRef.current = null; }
+      if (wasActive) {
+        setIsDragging(false);
+        (window as any).__lastDropClientX = e.clientX;
+        onTouchDropRef.current(task.id, e.clientY, "scheduled");
+      }
+    }
+
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      if (ghostRef.current) { document.body.removeChild(ghostRef.current); ghostRef.current = null; }
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [task.id, task.start_time, task.end_time, task.estimated_hours]);
 
   if (!task.start_time) return null;
   // end_time も estimated_hours もない場合はブロッキング不可
@@ -251,12 +319,14 @@ export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) 
         // ghost 画像が capture された後に元ブロックを非表示にする
         setTimeout(() => setIsDragging(true), 0);
       }}
+      ref={blockRef}
       onDragEnd={() => setIsDragging(false)}
       onClick={() => onEdit(task)}
       className="absolute left-0 right-1 rounded-xl overflow-visible transition-all flex flex-col cursor-grab active:cursor-grabbing"
       style={{
         top,
         height,
+        touchAction: "none",
         background: bgColor,
         border: `1.5px solid ${borderColor}`,
         boxShadow: isActive

@@ -1,3 +1,6 @@
+"use client";
+
+import React, { useRef, useEffect } from "react";
 import { Task } from "./types";
 import { hexToPastel, hexToMedium } from "./utils";
 
@@ -18,7 +21,75 @@ export function sortInbox(tasks: Task[]): Task[] {
   });
 }
 
-export function InboxChip({ task, onEdit }: { task: Task; onEdit?: (task: Task) => void }) {
+export function InboxChip({
+  task,
+  onEdit,
+  onTouchDrop,
+}: {
+  task: Task;
+  onEdit?: (task: Task) => void;
+  onTouchDrop?: (taskId: number, clientY: number, dragType: "scheduled" | "inbox") => void;
+}) {
+  const chipRef = useRef<HTMLDivElement>(null);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
+  const onTouchDropRef = useRef(onTouchDrop);
+  useEffect(() => { onTouchDropRef.current = onTouchDrop; }, [onTouchDrop]);
+
+  useEffect(() => {
+    const el = chipRef.current;
+    if (!el) return;
+    let active = false, startX = 0, startY = 0, offsetX = 0, offsetY = 0, pid = -1;
+
+    function onDown(e: PointerEvent) {
+      if (e.pointerType === "mouse") return;
+      const rect = el.getBoundingClientRect();
+      active = false; pid = e.pointerId;
+      offsetX = Math.round(e.clientX - rect.left);
+      offsetY = Math.round(e.clientY - rect.top);
+      startX = e.clientX; startY = e.clientY;
+    }
+
+    function onMove(e: PointerEvent) {
+      if (e.pointerId !== pid) return;
+      if (!active) {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) < 8) return;
+        active = true;
+        el.setPointerCapture(pid);
+        const rect = el.getBoundingClientRect();
+        const clone = el.cloneNode(true) as HTMLElement;
+        const tx = e.clientX - offsetX, ty = e.clientY - offsetY;
+        clone.style.cssText = `position:fixed;left:0;top:0;width:${rect.width}px;height:${rect.height}px;opacity:0.75;pointer-events:none;z-index:9999;border-radius:8px;transform:translate(${tx}px,${ty}px) scale(1.03);transform-origin:top left;box-shadow:0 8px 24px rgba(0,0,0,0.15);transition:none;`;
+        document.body.appendChild(clone);
+        ghostRef.current = clone;
+        const durationMins = task.estimated_hours ? Math.round(task.estimated_hours * 60) : 30;
+        (window as any).__dragInfo = { durationMins, grabOffset: 0 };
+      }
+      if (ghostRef.current) {
+        ghostRef.current.style.transform = `translate(${e.clientX - offsetX}px,${e.clientY - offsetY}px) scale(1.03)`;
+      }
+    }
+
+    function onUp(e: PointerEvent) {
+      if (e.pointerId !== pid) return;
+      const wasActive = active;
+      active = false; pid = -1;
+      if (ghostRef.current) { document.body.removeChild(ghostRef.current); ghostRef.current = null; }
+      if (wasActive) onTouchDropRef.current?.(task.id, e.clientY, "inbox");
+    }
+
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      if (ghostRef.current) { document.body.removeChild(ghostRef.current); ghostRef.current = null; }
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [task.id, task.estimated_hours]);
+
   function handleDragStart(e: React.DragEvent) {
     // D&D でドロップ先にタスクIDを渡す
     e.dataTransfer.setData("taskId", String(task.id));
@@ -37,13 +108,11 @@ export function InboxChip({ task, onEdit }: { task: Task; onEdit?: (task: Task) 
 
   return (
     <div
+      ref={chipRef}
       draggable
       onDragStart={handleDragStart}
+      style={{ touchAction: "none", background: hexToPastel(color, 0.15), borderColor: hexToMedium(color, 0.3) }}
       className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
-      style={{
-        background: hexToPastel(color, 0.15),
-        borderColor: hexToMedium(color, 0.3),
-      }}
     >
       <span
         className="w-1.5 h-1.5 rounded-full shrink-0"
