@@ -18,6 +18,24 @@ func NewReflectionHandler(svc *service.ReflectionService) *ReflectionHandler {
 	return &ReflectionHandler{svc: svc}
 }
 
+// GetToday GET /reflections/today
+// 今日の振り返りを取得します。存在しない場合は新規作成して返します。
+func (h *ReflectionHandler) GetToday(c *gin.Context) {
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	reflection, err := h.svc.GetOrCreateToday(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, reflection)
+}
+
 // GetMessages GET /reflections/:id/messages
 // 指定したリフレクションのチャット履歴を返します。
 func (h *ReflectionHandler) GetMessages(c *gin.Context) {

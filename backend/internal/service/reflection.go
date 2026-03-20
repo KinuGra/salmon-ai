@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
@@ -28,6 +29,12 @@ func NewReflectionService(
 		contextBuilder:        contextBuilder,
 		aiClient:              aiClient,
 	}
+}
+
+// GetOrCreateToday は今日の振り返りを取得し、なければ作成して返します。
+func (s *ReflectionService) GetOrCreateToday(userID uint) (*model.Reflection, error) {
+	today := time.Now().Truncate(24 * time.Hour)
+	return s.reflectionRepo.FindOrCreateByDate(userID, today)
 }
 
 // GetMessages は指定したリフレクションのチャット履歴を返します。
