@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Task } from "./types";
 import EditTaskModal, { Category } from "../task-list/EditTaskModal";
+import { DragProvider, useDragContext } from "./DragContext";
 
 const API_BASE = "http://localhost:8080";
 import {
@@ -15,6 +16,14 @@ import {
 import TaskBlock from "./TaskBlock";
 import InboxDrawer from "./InboxDrawer";
 import InboxSidebar from "./InboxSidebar";
+
+export default function TimeBlockingPage() {
+  return (
+    <DragProvider>
+      <TimeBlockingContent />
+    </DragProvider>
+  );
+}
 
 const HOURS = Array.from(
   { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
@@ -198,9 +207,10 @@ function AIModal({ onClose }: { onClose: () => void }) {
 }
 
 // ────────────────────────────────────────────
-// メインページ
+// メインコンテンツ（DragProvider の内側で動作）
 // ────────────────────────────────────────────
-export default function TimeBlockingPage() {
+function TimeBlockingContent() {
+  const { dragInfoRef, lastDropXRef } = useDragContext();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -350,7 +360,7 @@ export default function TimeBlockingPage() {
 
       // インボックスゾーン上にドロップされたか判定（elementsFromPoint でz-indexに依存しない判定）
       if (dragType === "scheduled") {
-        const clientX = (window as any).__lastDropClientX ?? window.innerWidth / 2;
+        const clientX = lastDropXRef.current || window.innerWidth / 2;
         const isOverInbox = document.elementsFromPoint(clientX, clientY)
           .some((el) => (el as HTMLElement).dataset?.inboxDropZone === "true");
         if (isOverInbox) {
@@ -376,7 +386,7 @@ export default function TimeBlockingPage() {
       if (clientY < rect.top || clientY > rect.bottom) return;
 
       const rawTop = clientY - rect.top;
-      const dragInfo = (window as any).__dragInfo ?? { durationMins: 30, grabOffset: 0 };
+      const dragInfo = dragInfoRef.current;
 
       let start: string;
       let end: string;
@@ -429,13 +439,13 @@ export default function TimeBlockingPage() {
     if (!timelineRef.current) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const rawTop = e.clientY - rect.top;
-    const dragInfo = (window as any).__dragInfo ?? { durationMins: 30, grabOffset: 0 };
+    const dragInfo = dragInfoRef.current;
     // grabOffset を考慮してブロック上端の位置を計算し、15分単位に丸める
     const adjustedTop = rawTop - dragInfo.grabOffset;
     const snappedTop = Math.round(adjustedTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
     const snappedBottom = snappedTop + dragInfo.durationMins * PX_PER_MIN;
     setDropIndicator({ top: snappedTop, bottom: snappedBottom });
-  }, []);
+  }, [dragInfoRef]);
 
   const handleDragLeave = useCallback(() => {
     setDropIndicator(null);
