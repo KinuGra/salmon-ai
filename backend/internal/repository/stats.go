@@ -20,6 +20,27 @@ func NewStatsRepository(db *gorm.DB) *StatsRepository {
 	return &StatsRepository{db: db}
 }
 
+func (r *StatsRepository) GetGrassData(userID uint, from, to time.Time) (map[string]int, error) {
+	type result struct {
+		Date  string
+		Count int
+	}
+	var results []result
+	if err := r.db.Raw(`
+		SELECT TO_CHAR(DATE(start_time AT TIME ZONE 'Asia/Tokyo'), 'YYYY-MM-DD') as date, COUNT(*) as count
+		FROM tasks
+		WHERE user_id = ? AND is_completed = true AND start_time >= ? AND start_time < ?
+		GROUP BY DATE(start_time AT TIME ZONE 'Asia/Tokyo')
+	`, userID, from, to).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+	data := make(map[string]int)
+	for _, res := range results {
+		data[res.Date] = res.Count
+	}
+	return data, nil
+}
+
 func (r *StatsRepository) GetStats(userID uint, from, to time.Time) (StatsData, error) {
 	data := StatsData{AchievementCounts: make(map[int]int)}
 

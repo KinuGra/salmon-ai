@@ -118,6 +118,7 @@ func main() {
 	// Stats
 	r.GET("/stats/weekly", statsHandler.GetWeeklyStats)
 	r.GET("/stats/monthly", statsHandler.GetMonthlyStats)
+	r.GET("/stats/grass", statsHandler.GetGrass)
 	r.POST("/ai/stats/comment", statsHandler.PostStatsComment)
 
 	if err := r.Run(":8080"); err != nil {

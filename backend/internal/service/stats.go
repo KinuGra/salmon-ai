@@ -19,6 +19,14 @@ type StatsResponse struct {
 	Previous repository.StatsData `json:"previous"`
 }
 
+func (s *StatsService) GetGrass(userID uint, weeks int) (map[string]int, error) {
+	jst, _ := time.LoadLocation("Asia/Tokyo")
+	now := time.Now().In(jst)
+	to := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, jst)
+	from := to.AddDate(0, 0, -weeks*7)
+	return s.repo.GetGrassData(userID, from, to)
+}
+
 func (s *StatsService) GetWeeklyStats(userID uint) (StatsResponse, error) {
 	jst, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(jst)

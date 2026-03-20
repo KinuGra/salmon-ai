@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
@@ -47,6 +48,28 @@ func (h *StatsHandler) GetMonthlyStats(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, stats)
+}
+
+func (h *StatsHandler) GetGrass(c *gin.Context) {
+	userID, exists := getUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	weeks := 16
+	if w := c.Query("weeks"); w != "" {
+		if parsed, err := strconv.Atoi(w); err == nil && parsed > 0 {
+			weeks = parsed
+		}
+	}
+
+	data, err := h.svc.GetGrass(userID, weeks)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": data})
 }
 
 type StatsCommentRequest struct {

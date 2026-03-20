@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 
 const API_BASE = "http://localhost:8080";
 
+const GRASS_WEEKS = 16;
+
 type StatsData = {
   completed_count: number;
   achievement_counts: Record<number, number>;
@@ -27,6 +29,113 @@ const ACHIEVEMENT_LABELS: Record<number, string> = {
   0: "0%",
 };
 
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function GrassGraph() {
+  const [data, setData] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetch(`${API_BASE}/stats/grass?weeks=${GRASS_WEEKS}`)
+      .then((r) => r.json())
+      .then((d) => setData(d.data ?? {}));
+  }, []);
+
+  const today = new Date();
+
+  // GRASS_WEEKS 週前の月曜日を起点にする
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - GRASS_WEEKS * 7 + 1);
+  const dow = startDate.getDay() || 7; // 1=月 〜 7=日
+  startDate.setDate(startDate.getDate() - (dow - 1));
+
+  // 全日付を生成して週ごとに分割
+  const cols: Date[][] = [];
+  const cur = new Date(startDate);
+  while (cur <= today) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    cols.push(week);
+  }
+
+  // 月ラベル（列ごとに月が変わったら表示）
+  const monthLabels: (string | null)[] = cols.map((col, i) => {
+    const month = col[0].getMonth();
+    if (i === 0) return `${col[0].getMonth() + 1}月`;
+    if (cols[i - 1][0].getMonth() !== month) return `${month + 1}月`;
+    return null;
+  });
+
+  function grassColor(count: number): string {
+    if (count === 0) return "bg-slate-100";
+    if (count === 1) return "bg-emerald-200";
+    if (count <= 3) return "bg-emerald-300";
+    if (count <= 5) return "bg-emerald-500";
+    return "bg-emerald-700";
+  }
+
+  const todayStr = toDateStr(today);
+  const dayLabels = ["月", "", "水", "", "金", "", "日"];
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="flex gap-[3px]">
+        {/* 曜日ラベル */}
+        <div className="flex flex-col gap-[3px] mr-0.5 pt-4">
+          {dayLabels.map((label, i) => (
+            <div key={i} className="w-[11px] h-[11px] flex items-center justify-end">
+              <span className="text-[8px] text-slate-400 leading-none">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* 週列 */}
+        {cols.map((col, ci) => (
+          <div key={ci} className="flex flex-col gap-[3px]">
+            {/* 月ラベル */}
+            <div className="h-4 flex items-end">
+              <span className="text-[9px] text-slate-400 leading-none whitespace-nowrap">
+                {monthLabels[ci] ?? ""}
+              </span>
+            </div>
+            {/* 日マス */}
+            {col.map((date, di) => {
+              const str = toDateStr(date);
+              const count = data[str] ?? 0;
+              const isToday = str === todayStr;
+              const isFuture = date > today;
+              return (
+                <div
+                  key={di}
+                  title={isFuture ? "" : `${str}  ${count}件完了`}
+                  className={[
+                    "w-[11px] h-[11px] rounded-[2px] transition-colors",
+                    isFuture ? "bg-slate-50" : grassColor(count),
+                    isToday ? "ring-1 ring-indigo-400 ring-offset-[1px]" : "",
+                  ].join(" ")}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* 凡例 */}
+      <div className="flex items-center gap-1.5 mt-2 justify-end">
+        <span className="text-[9px] text-slate-400">少</span>
+        {["bg-slate-100", "bg-emerald-200", "bg-emerald-300", "bg-emerald-500", "bg-emerald-700"].map((cls, i) => (
+          <div key={i} className={`w-[11px] h-[11px] rounded-[2px] ${cls}`} />
+        ))}
+        <span className="text-[9px] text-slate-400">多</span>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col items-center gap-1">
@@ -37,13 +146,13 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
   );
 }
 
-function DiffBadge({ current, previous }: { current: number; previous: number }) {
+function DiffBadge({ current, previous, periodLabel }: { current: number; previous: number; periodLabel: string }) {
   const diff = current - previous;
-  if (diff === 0) return <span className="text-slate-400 text-[11px]">先週と同じ</span>;
+  if (diff === 0) return <span className="text-slate-400 text-[11px]">{periodLabel}と同じ</span>;
   const positive = diff > 0;
   return (
     <span className={`text-[11px] font-bold ${positive ? "text-emerald-500" : "text-red-400"}`}>
-      {positive ? "+" : ""}{diff} 先週比
+      {positive ? "+" : ""}{diff} {periodLabel}比
     </span>
   );
 }
@@ -118,6 +227,12 @@ export default function StatsPage() {
       <div className="max-w-lg mx-auto px-4 pt-8">
         <h1 className="text-[22px] font-bold text-slate-900 mb-6">統計・進捗サマリー</h1>
 
+        {/* 草グラフ */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-6">
+          <p className="text-[11px] font-semibold text-slate-400 mb-3">完了の記録（過去{GRASS_WEEKS}週）</p>
+          <GrassGraph />
+        </div>
+
         {/* タブ */}
         <div className="flex gap-2 mb-6 bg-white border border-slate-100 rounded-2xl p-1 shadow-sm">
           {(["weekly", "monthly"] as const).map((t) => (
@@ -144,7 +259,7 @@ export default function StatsPage() {
               <h2 className="text-[13px] font-semibold text-slate-500 mb-3">{tab === "weekly" ? "今週" : "今月"}</h2>
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <StatCard label="完了タスク" value={stats.current.completed_count} sub="件" />
-                <StatCard label="草の数" value={stats.current.grass_count} sub="日" />
+                <StatCard label="活動日数" value={stats.current.grass_count} sub="日" />
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
                 <p className="text-[11px] font-semibold text-slate-400 mb-3">達成度別内訳</p>
@@ -159,13 +274,13 @@ export default function StatsPage() {
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[11px] text-slate-400">完了タスク</span>
                   <span className="text-[22px] font-bold text-slate-700 tabular-nums">{stats.previous.completed_count}</span>
-                  <DiffBadge current={stats.current.completed_count} previous={stats.previous.completed_count} />
+                  <DiffBadge current={stats.current.completed_count} previous={stats.previous.completed_count} periodLabel={periodLabel} />
                 </div>
                 <div className="w-px bg-slate-100" />
                 <div className="flex flex-col items-center gap-1">
-                  <span className="text-[11px] text-slate-400">草の数</span>
+                  <span className="text-[11px] text-slate-400">活動日数</span>
                   <span className="text-[22px] font-bold text-slate-700 tabular-nums">{stats.previous.grass_count}</span>
-                  <DiffBadge current={stats.current.grass_count} previous={stats.previous.grass_count} />
+                  <DiffBadge current={stats.current.grass_count} previous={stats.previous.grass_count} periodLabel={periodLabel} />
                 </div>
               </div>
             </section>
