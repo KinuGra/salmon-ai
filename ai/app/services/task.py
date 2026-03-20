@@ -1,20 +1,24 @@
-import google.generativeai as genai
-import os
 import json
 import logging
+import os
+
 from fastapi import HTTPException
-from app.schemas.task import TaskEstimateRequest, TaskEstimateResponse
+from google import genai
+from google.genai import types
+
 from app.prompts.task import SYSTEM_PROMPT, build_task_estimate_prompt
+from app.schemas.task import TaskEstimateRequest, TaskEstimateResponse
 
 logger = logging.getLogger(__name__)
 
+
 def estimate_task_service(request: TaskEstimateRequest) -> TaskEstimateResponse:
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    if not GEMINI_API_KEY:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
         raise HTTPException(status_code=500, detail="Gemini API key is not configured in the AI service")
-    
-    genai.configure(api_key=GEMINI_API_KEY)
-    
+
+    client = genai.Client(api_key=api_key)
+
     prompt = build_task_estimate_prompt(
         title=request.title,
         description=request.description,
@@ -23,37 +27,23 @@ def estimate_task_service(request: TaskEstimateRequest) -> TaskEstimateResponse:
     )
 
     try:
-        model = genai.GenerativeModel(
-            model_name='gemini-2.5-flash',
-            system_instruction=SYSTEM_PROMPT
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                response_mime_type="application/json",
+            ),
         )
 
-        generation_config = genai.GenerationConfig(
-            response_mime_type="application/json",
-            temperature=0.3
-        )
-
-        response = model.generate_content(
-            prompt,
-            generation_config=generation_config
-        )
-
-        result = response.text
-        parsed_result = json.loads(result)
+        parsed_result = json.loads(response.text)
 
         return TaskEstimateResponse(
             estimated_hours=float(parsed_result.get("estimated_hours", 0)),
             reasoning=parsed_result.get("reasoning", "")
         )
     except json.JSONDecodeError as e:
-        result = ""
-        response = model.generate_content(
-            prompt,
-            generation_config=generation_config
-        )
-
-        result = response.text
-        parsed_result = json.loads(result)
+        logger.error(f"Failed to parse JSON from Gemini response: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to parse task estimate from AI")
     except Exception as e:
         logger.error(f"Error calling Gemini AI: {str(e)}")

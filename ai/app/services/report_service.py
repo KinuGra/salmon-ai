@@ -11,6 +11,8 @@ def generate_report(req: ReportRequest) -> ReportResponse:
     """
     Goから受け取ったコンテキスト文字列をプロンプトに埋め込み、
     Gemini APIで自己分析レポートを生成して返します。
+    ClientError / ServerError はそのままルーターに伝播させ、
+    ルーター側で適切なHTTPステータスに変換します。
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -20,7 +22,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
 
     prompt = REPORT_PROMPT.format(context=req.context)
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
