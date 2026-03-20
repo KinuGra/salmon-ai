@@ -21,8 +21,12 @@ type UpdateUserProfileRequest struct {
 }
 
 func (h *UserHandler) GetProfile(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	user, err := h.svc.GetProfile(userID)
 	if err != nil {
@@ -33,8 +37,12 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 }
 
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	var req UpdateUserProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

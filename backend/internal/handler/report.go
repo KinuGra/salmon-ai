@@ -21,7 +21,12 @@ func NewReportHandler(svc *service.ReportService) *ReportHandler {
 // 指定ユーザーの最新の自己分析レポートを返します。
 // レポートが未生成の場合は 404 を返します。
 func (h *ReportHandler) GetLatestReport(c *gin.Context) {
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	report, err := h.svc.GetLatestReport(userID)
 	if err != nil {
@@ -39,7 +44,12 @@ func (h *ReportHandler) GetLatestReport(c *gin.Context) {
 // GenerateReport POST /ai/report/generate
 // ContextBuilderで全データを収集し、AIサービスに新しいレポートを生成させ、DBに保存します。
 func (h *ReportHandler) GenerateReport(c *gin.Context) {
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	report, err := h.svc.GenerateReport(userID)
 	if err != nil {

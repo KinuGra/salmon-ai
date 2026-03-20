@@ -9,7 +9,6 @@ import (
 	"github.com/salmon-ai/salmon-ai/internal/service"
 )
 
-
 type CategoryHandler struct {
 	svc *service.CategoryService
 }
@@ -29,8 +28,12 @@ type UpdateCategoryRequest struct {
 }
 
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	categories, err := h.svc.GetCategories(userID)
 	if err != nil {
@@ -41,8 +44,12 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 }
 
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,8 +71,12 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 }
 
 func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -88,8 +99,12 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 }
 
 func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
-	// TODO: ミドルウェア実装後は uint(1) を c.MustGet("userID").(uint) に差し替える
-	userID := getUserID()
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDVal.(uint)
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

@@ -1,9 +1,10 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 
-	aiclient "github.com/salmon-ai/salmon-ai/pkg/ai_client"
+	aiclient "github.com/salmon-ai/salmon-ai/pkg/aiclient"
 
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
@@ -53,9 +54,14 @@ func (s *ReportService) GenerateReport(userID uint) (*model.Report, error) {
 	}
 
 	// 2. AIサービスへリクエスト
-	var aiResp generateReportResponse
-	if err := s.aiClient.Post("/report/generate", generateReportRequest{Context: ctx}, &aiResp); err != nil {
+	data, err := s.aiClient.Post("/report/generate", generateReportRequest{Context: ctx})
+	if err != nil {
 		return nil, fmt.Errorf("report_service: AI request failed: %w", err)
+	}
+
+	var aiResp generateReportResponse
+	if err := json.Unmarshal(data, &aiResp); err != nil {
+		return nil, fmt.Errorf("report_service: failed to decode AI response: %w", err)
 	}
 
 	// 3. 返ってきたMarkdownをDBに新規保存（上書きしない）

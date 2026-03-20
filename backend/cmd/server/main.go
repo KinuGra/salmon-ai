@@ -9,7 +9,7 @@ import (
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
 	"github.com/salmon-ai/salmon-ai/internal/service"
-	aiclient "github.com/salmon-ai/salmon-ai/pkg/ai_client"
+	aiclient "github.com/salmon-ai/salmon-ai/pkg/aiclient"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
