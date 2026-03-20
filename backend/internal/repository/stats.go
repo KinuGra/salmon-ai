@@ -70,6 +70,15 @@ func (r *StatsRepository) GetStats(userID uint, from, to time.Time) (StatsData, 
 		data.AchievementCounts[res.AchievementRate] = res.Count
 	}
 
+	// タスクリストでチェックされた（is_completed=true かつ achievement_rate 未設定）タスクを 100% として計上
+	var completedNoRate int64
+	if err := r.db.Model(&model.Task{}).
+		Where("user_id = ? AND is_completed = true AND achievement_rate IS NULL AND start_time >= ? AND start_time < ?", userID, from, to).
+		Count(&completedNoRate).Error; err != nil {
+		return data, err
+	}
+	data.AchievementCounts[100] += int(completedNoRate)
+
 	// 草の数（is_completed = true の日のユニーク数）
 	var grassCount int64
 	if err := r.db.Raw(
