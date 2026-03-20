@@ -32,6 +32,7 @@ type UpdateTaskRequest struct {
 	Title           *string  `json:"title"`
 	Description     *string  `json:"description"`
 	Priority        *int     `json:"priority"`
+	ClearPriority   *bool    `json:"clear_priority"`
 	CategoryID      *uint    `json:"category_id"`
 	DueDate         *string  `json:"due_date"`
 	StartTime       *string  `json:"start_time"`
@@ -176,7 +177,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	if req.Description != nil {
 		fields["description"] = *req.Description
 	}
-	if req.Priority != nil {
+	if req.ClearPriority != nil && *req.ClearPriority {
+		fields["priority"] = clause.Expr{SQL: "NULL"}
+	} else if req.Priority != nil {
 		fields["priority"] = *req.Priority
 	}
 	if req.CategoryID != nil {

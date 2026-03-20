@@ -301,7 +301,7 @@ export default function EditTaskModal({
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
-  const [priority, setPriority] = useState(String(task.priority ?? 2));
+  const [priority, setPriority] = useState(task.priority != null ? String(task.priority) : "");
   const [categoryId, setCategoryId] = useState<number | null>(task.category?.id ?? null);
 
   const initMins = task.estimated_hours != null ? Math.round(task.estimated_hours * 60) : null;
@@ -312,7 +312,7 @@ export default function EditTaskModal({
 
   function handleSave() {
     if (!title.trim()) return;
-    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority) as 1 | 2 | 3, estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null }, categoryId);
+    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: priority !== "" ? parseInt(priority) as 1 | 2 | 3 : null, estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null }, categoryId);
     onClose();
   }
 
@@ -342,6 +342,7 @@ export default function EditTaskModal({
           <div>
             <label className={labelCls}>優先度</label>
             <select value={priority} onChange={(e) => setPriority(e.target.value)} className={`${inputCls} bg-white`}>
+              <option value="">未設定</option>
               <option value="1">高</option>
               <option value="2">中</option>
               <option value="3">低</option>

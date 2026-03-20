@@ -317,7 +317,7 @@ function AddTaskModal({
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("2");
+  const [priority, setPriority] = useState("");
   const [durationMins, setDurationMins] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -328,7 +328,7 @@ function AddTaskModal({
       id: Date.now(),
       title: title.trim(),
       description: description.trim() || null,
-      priority: parseInt(priority) as 1 | 2 | 3,
+      priority: priority !== "" ? parseInt(priority) as 1 | 2 | 3 : null,
       is_completed: false,
       estimated_hours: durationMins != null ? durationMins / 60 : null,
       ai_estimated_hours: null,
@@ -381,6 +381,7 @@ function AddTaskModal({
               onChange={(e) => setPriority(e.target.value)}
               className={`${inputCls} bg-white`}
             >
+              <option value="">未設定</option>
               <option value="1">高</option>
               <option value="2">中</option>
               <option value="3">低</option>
@@ -437,7 +438,7 @@ export default function TaskListPage() {
       const res = await fetch(`${API_BASE}/tasks/${updated.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: updated.title, description: updated.description, priority: updated.priority, estimated_hours: updated.estimated_hours, due_date: updated.due_date, category_id: categoryId }),
+        body: JSON.stringify({ title: updated.title, description: updated.description, ...(updated.priority != null ? { priority: updated.priority } : { clear_priority: true }), estimated_hours: updated.estimated_hours, due_date: updated.due_date, category_id: categoryId }),
       });
       if (!res.ok) { console.error("タスク更新エラー:", res.status, await res.text()); return; }
       const saved: Task = await res.json();
@@ -560,9 +561,9 @@ export default function TaskListPage() {
           <div className="flex gap-0">
             {(
               [
+                { key: "all", label: "すべて", cnt: tasks.length },
                 { key: "active", label: "未完了", cnt: activeCnt },
                 { key: "done", label: "完了済み", cnt: doneCnt },
-                { key: "all", label: "すべて", cnt: tasks.length },
               ] as const
             ).map(({ key, label, cnt }) => (
               <button
