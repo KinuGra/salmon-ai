@@ -46,7 +46,14 @@ def estimate_task_service(request: TaskEstimateRequest) -> TaskEstimateResponse:
             reasoning=parsed_result.get("reasoning", "")
         )
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to decode JSON from AI response: {str(e)}\nResponse text: {result}")
+        result = ""
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config
+        )
+
+        result = response.text
+        parsed_result = json.loads(result)
         raise HTTPException(status_code=500, detail="Failed to parse task estimate from AI")
     except Exception as e:
         logger.error(f"Error calling Gemini AI: {str(e)}")
