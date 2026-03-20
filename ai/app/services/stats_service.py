@@ -1,11 +1,10 @@
 import json
 import os
 
-from google import genai
-from google.genai import types
-
 from app.prompts.stats import STATS_COMMENT_PROMPT
 from app.schemas.stats import StatsCommentRequest, StatsCommentResponse
+from google import genai
+from google.genai import types
 
 
 def generate_stats_comment(req: StatsCommentRequest) -> StatsCommentResponse:
@@ -34,7 +33,7 @@ def generate_stats_comment(req: StatsCommentRequest) -> StatsCommentResponse:
     )
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.0-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
