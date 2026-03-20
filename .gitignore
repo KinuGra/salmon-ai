@@ -104,6 +104,15 @@ coverage.out
 *.sqlite3
 
 ############################
+# Terraform
+############################
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+service-account.json
+
+############################
 # Misc
 ############################
 *.swp
