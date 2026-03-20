@@ -163,16 +163,18 @@ function DueDateInput({
   }
   function handleCustomDue(year: string, month: string, day: string) {
     setCustomYear(year); setCustomMonth(month); setCustomDay(day);
-    const y = parseInt(year), m = parseInt(month), d = parseInt(day);
-    if (y && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      const candidate = makeDueDate(y, m, d);
-      if (candidate.getFullYear() === y && candidate.getMonth() === m - 1 && candidate.getDate() === d) {
-        setDueDate(candidate);
-        onChange(candidate);
-      } else {
-        setDueDate(null);
-        onChange(null);
-      }
+    const y = parseInt(year);
+    const m = parseInt(month);
+    const d = parseInt(day);
+    const candidate = new Date(y, m - 1, d);
+    if (
+      !isNaN(candidate.getTime()) &&
+      candidate.getFullYear() === y &&
+      candidate.getMonth() === m - 1 &&
+      candidate.getDate() === d
+    ) {
+      setDueDate(candidate);
+      onChange(candidate);
     } else {
       setDueDate(null);
       onChange(null);
