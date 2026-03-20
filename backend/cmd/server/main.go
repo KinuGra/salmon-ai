@@ -4,12 +4,12 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/salmon-ai/salmon-ai/internal/middleware"
 	"github.com/salmon-ai/salmon-ai/internal/handler"
+	"github.com/salmon-ai/salmon-ai/internal/middleware"
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
 	"github.com/salmon-ai/salmon-ai/internal/service"
-	"github.com/salmon-ai/salmon-ai/pkg/aiclient"
+	aiclient "github.com/salmon-ai/salmon-ai/pkg/aiclient"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
@@ -44,7 +44,7 @@ func main() {
 	var mockUser model.User
 	result := db.FirstOrCreate(&mockUser, model.User{
 		Email: "mock@example.com",
-		Name: "モックユーザー",
+		Name:  "モックユーザー",
 	})
 	if result.Error != nil {
 		log.Fatalf("failed to create mock user: %v", result.Error)
@@ -55,26 +55,33 @@ func main() {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
 	}
 
-	// Repository
+	// ── Repository ──────────────────────────────────────────
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	statsRepo := repository.NewStatsRepository(db)
+	reflectionRepo := repository.NewReflectionRepository(db)
+	reportRepo := repository.NewReportRepository(db)
 
-	// Service
+	// ── AI Client ───────────────────────────────────────────
+	aiClient := aiclient.NewClient()
+
+	// ── ContextBuilder ──────────────────────────────────────
+	contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
+
+	// ── Service ─────────────────────────────────────────────
 	taskSvc := service.NewTaskService(taskRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
 	statsSvc := service.NewStatsService(statsRepo)
+	reportSvc := service.NewReportService(reportRepo, contextBuilder, aiClient)
 
-	// AI Client
-	aiClient := aiclient.NewClient()
-
-	// Handler
+	// ── Handler ─────────────────────────────────────────────
 	taskHandler := handler.NewTaskHandler(taskSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	statsHandler := handler.NewStatsHandler(statsSvc, aiClient)
+	reportHandler := handler.NewReportHandler(reportSvc)
 
 	// ミドルウェアの登録
 	r := gin.Default()
@@ -120,6 +127,10 @@ func main() {
 	r.GET("/stats/monthly", statsHandler.GetMonthlyStats)
 	r.GET("/stats/grass", statsHandler.GetGrass)
 	r.POST("/ai/stats/comment", statsHandler.PostStatsComment)
+
+	// Reports（自己分析レポート）
+	r.GET("/reports/latest", reportHandler.GetLatestReport)
+	r.POST("/ai/report/generate", reportHandler.GenerateReport)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)
