@@ -76,6 +76,12 @@ function DurationInput({
     const mins = h !== "" || m !== "0" ? parseInt(h || "0") * 60 + parseInt(m) : null;
     onChange(mins);
   }
+  function handleClear() {
+    setSelectedMins(null);
+    setCustomH("");
+    setCustomM("0");
+    onChange(null);
+  }
 
   return (
     <div>
@@ -102,6 +108,15 @@ function DurationInput({
             {label}
           </button>
         ))}
+        {durationMins !== null && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-400 hover:border-red-300 hover:text-red-500 transition-all active:scale-95"
+          >
+            クリア
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <input

@@ -195,7 +195,8 @@ export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) 
   const [isDragging, setIsDragging] = useState(false);
 
   if (!task.start_time) return null;
-  if (!task.end_time && task.estimated_hours == null) return null;
+  // end_time も estimated_hours もない場合はブロッキング不可
+  // (estimated_hours=null は 1h=60min のデフォルトで表示する)
 
   const top = isoToTop(task.start_time);
   const startLabel = isoToLabel(task.start_time);
@@ -203,7 +204,7 @@ export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) 
 
   const durationMins = task.end_time
     ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
-    : (task.estimated_hours ?? 0) * 60;
+    : (task.estimated_hours ?? 1) * 60; // null の場合は 1h をデフォルト
   const height = Math.max(durationMins * PX_PER_MIN, 36);
 
   const color = task.category?.color ?? "#94a3b8";

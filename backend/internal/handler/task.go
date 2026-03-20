@@ -29,19 +29,20 @@ type CreateTaskRequest struct {
 }
 
 type UpdateTaskRequest struct {
-	Title           *string  `json:"title"`
-	Description     *string  `json:"description"`
-	Priority        *int     `json:"priority"`
-	ClearPriority   *bool    `json:"clear_priority"`
-	CategoryID      *uint    `json:"category_id"`
-	DueDate         *string  `json:"due_date"`
-	StartTime       *string  `json:"start_time"`
-	EndTime         *string  `json:"end_time"`
-	ClearStartTime  *bool    `json:"clear_start_time"`
-	ClearEndTime    *bool    `json:"clear_end_time"`
-	EstimatedHours  *float64 `json:"estimated_hours"`
-	IsCompleted     *bool    `json:"is_completed"`
-	AchievementRate *int     `json:"achievement_rate"`
+	Title               *string  `json:"title"`
+	Description         *string  `json:"description"`
+	Priority            *int     `json:"priority"`
+	ClearPriority       *bool    `json:"clear_priority"`
+	CategoryID          *uint    `json:"category_id"`
+	DueDate             *string  `json:"due_date"`
+	StartTime           *string  `json:"start_time"`
+	EndTime             *string  `json:"end_time"`
+	ClearStartTime      *bool    `json:"clear_start_time"`
+	ClearEndTime        *bool    `json:"clear_end_time"`
+	EstimatedHours      *float64 `json:"estimated_hours"`
+	ClearEstimatedHours *bool    `json:"clear_estimated_hours"`
+	IsCompleted         *bool    `json:"is_completed"`
+	AchievementRate     *int     `json:"achievement_rate"`
 }
 
 func getUserID(c *gin.Context) (uint, bool) {
@@ -185,7 +186,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	if req.CategoryID != nil {
 		fields["category_id"] = *req.CategoryID
 	}
-	if req.EstimatedHours != nil {
+	if req.ClearEstimatedHours != nil && *req.ClearEstimatedHours {
+		fields["estimated_hours"] = clause.Expr{SQL: "NULL"}
+	} else if req.EstimatedHours != nil {
 		fields["estimated_hours"] = *req.EstimatedHours
 	}
 	if req.AchievementRate != nil {
