@@ -1,0 +1,13 @@
+# .dockerignore（リポジトリルート）
+backend/.env
+backend/*.env
+backend/.env.*
+ai/.env
+ai/*.env
+ai/.env.*
+frontend/.env
+frontend/.env.local
+frontend/*.env
+**/__pycache__/
+**/*.pyc
+**/.git/
