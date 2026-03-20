@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -58,6 +59,27 @@ func main() {
 		log.Printf("mock user created: id=%d", mockUser.ID)
 	} else {
 		log.Printf("mock user already exists: id=%d", mockUser.ID)
+	}
+
+	// ── Big Five モックデータのシード ────────────────────────────
+	// db/seed.sql を起動時に毎回実行する。
+	// SQL はすべて ON CONFLICT (id) DO NOTHING で書かれているため冪等。
+	// 既にデータが存在する場合は何も変更しない。
+	//
+	// 投入されるユーザー（MockAuth の ID を切り替えて使い分ける）:
+	//   middleware.MockAuth(10) → 田中 誠一（誠実性が高い・最適ゾーン）
+	//   middleware.MockAuth(20) → 鈴木 彩花（外向性・楽観的・過信型）
+	//   middleware.MockAuth(30) → 佐藤 健太（慎重すぎ・コンフォートゾーン型）
+	//
+	// ファイルが存在しない場合はスキップ（本番環境への影響なし）
+	if seedSQL, err := os.ReadFile("db/seed.sql"); err == nil {
+		if _, err := sqlDB.Exec(string(seedSQL)); err != nil {
+			log.Printf("warning: failed to execute seed.sql: %v", err)
+		} else {
+			log.Println("seed.sql executed successfully")
+		}
+	} else {
+		log.Println("db/seed.sql not found, skipping seed")
 	}
 
 	// デフォルトカテゴリの作成
