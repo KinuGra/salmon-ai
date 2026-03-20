@@ -33,6 +33,7 @@ export function InboxChip({
   const chipRef = useRef<HTMLDivElement>(null);
   const ghostRef = useRef<HTMLDivElement | null>(null);
   const onTouchDropRef = useRef(onTouchDrop);
+  const didDragRef = useRef(false);
   useEffect(() => { onTouchDropRef.current = onTouchDrop; }, [onTouchDrop]);
 
   useEffect(() => {
@@ -74,7 +75,7 @@ export function InboxChip({
       const wasActive = active;
       active = false; pid = -1;
       if (ghostRef.current) { document.body.removeChild(ghostRef.current); ghostRef.current = null; }
-      if (wasActive) onTouchDropRef.current?.(task.id, e.clientY, "inbox");
+      if (wasActive) { didDragRef.current = true; onTouchDropRef.current?.(task.id, e.clientY, "inbox"); }
     }
 
     el.addEventListener("pointerdown", onDown);
@@ -111,6 +112,10 @@ export function InboxChip({
       ref={chipRef}
       draggable
       onDragStart={handleDragStart}
+      onClick={() => {
+        if (didDragRef.current) { didDragRef.current = false; return; }
+        onEdit?.(task);
+      }}
       style={{ touchAction: "none", background: hexToPastel(color, 0.15), borderColor: hexToMedium(color, 0.3) }}
       className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-md"
     >
@@ -150,15 +155,6 @@ export function InboxChip({
         >
           {PRIORITY_LABEL[task.priority]}
         </span>
-        {onEdit && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-            className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-200 active:scale-90 transition-all"
-            aria-label="タスクを編集"
-          >
-            <span className="text-[12px] text-slate-400 leading-none">✎</span>
-          </button>
-        )}
       </div>
     </div>
   );
