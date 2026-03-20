@@ -69,7 +69,9 @@ func main() {
 		{UserID: mockUser.ID, Name: "趣味", Color: "#A855F7"},
 	}
 	for _, cat := range defaultCategories {
-		db.FirstOrCreate(&model.Category{}, model.Category{UserID: cat.UserID, Name: cat.Name, Color: cat.Color})
+		if err := db.FirstOrCreate(&model.Category{}, model.Category{UserID: cat.UserID, Name: cat.Name, Color: cat.Color}).Error; err != nil {
+			log.Fatalf("failed to create default category '%s': %v", cat.Name, err)
+		}
 	}
 
 	// ── Repository ──────────────────────────────────────────

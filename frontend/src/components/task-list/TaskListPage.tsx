@@ -272,6 +272,36 @@ function DueDateInput({
 }
 
 // ────────────────────────────────────────────
+// カテゴリ選択
+// ────────────────────────────────────────────
+function CategorySelect({
+  categories,
+  value,
+  onChange,
+}: {
+  categories: Category[];
+  value: number | null;
+  onChange: (id: number | null) => void;
+}) {
+  const inputCls = "w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition";
+  return (
+    <div>
+      <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">カテゴリ（任意）</label>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value ? parseInt(e.target.value) : null)}
+        className={`${inputCls} bg-white`}
+      >
+        <option value="">なし</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
 // タスク追加モーダル
 // ────────────────────────────────────────────
 function AddTaskModal({
@@ -352,19 +382,7 @@ function AddTaskModal({
           </div>
           <DurationInput initialMins={null} onChange={setDurationMins} />
           <DueDateInput initialDate={null} onChange={setDueDate} />
-          <div>
-            <label className={labelCls}>カテゴリ（任意）</label>
-            <select
-              value={categoryId ?? ""}
-              onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : null)}
-              className={`${inputCls} bg-white`}
-            >
-              <option value="">なし</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
         </div>
         <div className="flex gap-2.5 mt-6">
           <button onClick={onClose}
@@ -446,19 +464,7 @@ function EditTaskModal({
           </div>
           <DurationInput initialMins={initMins} onChange={setDurationMins} />
           <DueDateInput initialDate={initDue} onChange={setDueDate} />
-          <div>
-            <label className={labelCls}>カテゴリ（任意）</label>
-            <select
-              value={categoryId ?? ""}
-              onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : null)}
-              className={`${inputCls} bg-white`}
-            >
-              <option value="">なし</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
         </div>
         <div className="flex gap-2.5 mt-6">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold hover:bg-slate-200 transition-colors">キャンセル</button>
@@ -477,14 +483,15 @@ export default function TaskListPage() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/tasks`)
-      .then((r) => r.json())
-      .then((data) => setTasks(data))
-      .catch((e) => console.error("タスク取得エラー:", e));
-    fetch(`${API_BASE}/categories`)
-      .then((r) => r.json())
-      .then((data) => setCategories(data))
-      .catch((e) => console.error("カテゴリ取得エラー:", e));
+    Promise.all([
+      fetch(`${API_BASE}/tasks`).then((r) => r.json()),
+      fetch(`${API_BASE}/categories`).then((r) => r.json()),
+    ])
+      .then(([tasks, categories]) => {
+        setTasks(tasks);
+        setCategories(categories);
+      })
+      .catch((e) => console.error("データ取得エラー:", e));
   }, []);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
