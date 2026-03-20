@@ -1,0 +1,63 @@
+package repository
+
+import (
+	"github.com/salmon-ai/salmon-ai/internal/model"
+	"gorm.io/gorm"
+	"time"
+)
+
+type StatsData struct {
+	CompletedCount    int         `json:"completed_count"`
+	AchievementCounts map[int]int `json:"achievement_counts"`
+	GrassCount        int         `json:"grass_count"`
+}
+
+type StatsRepository struct {
+	db *gorm.DB
+}
+
+func NewStatsRepository(db *gorm.DB) *StatsRepository {
+	return &StatsRepository{db: db}
+}
+
+func (r *StatsRepository) GetStats(userID uint, from, to time.Time) (StatsData, error) {
+	data := StatsData{AchievementCounts: make(map[int]int)}
+
+	// 完了タスク数
+	var completedCount int64
+	if err := r.db.Model(&model.Task{}).
+		Where("user_id = ? AND is_completed = true AND start_time >= ? AND start_time < ?", userID, from, to).
+		Count(&completedCount).Error; err != nil {
+		return data, err
+	}
+	data.CompletedCount = int(completedCount)
+
+	// 達成度別件数
+	type achResult struct {
+		AchievementRate int
+		Count           int
+	}
+	var results []achResult
+	if err := r.db.Model(&model.Task{}).
+		Select("achievement_rate, count(*) as count").
+		Where("user_id = ? AND achievement_rate IS NOT NULL AND start_time >= ? AND start_time < ?", userID, from, to).
+		Group("achievement_rate").
+		Scan(&results).Error; err != nil {
+		return data, err
+	}
+	for _, res := range results {
+		data.AchievementCounts[res.AchievementRate] = res.Count
+	}
+
+	// 草の数（is_completed = true の日のユニーク数）
+	var grassCount int64
+	if err := r.db.Raw(
+		`SELECT COUNT(DISTINCT DATE(start_time AT TIME ZONE 'Asia/Tokyo')) FROM tasks WHERE user_id = ? AND is_completed = true AND start_time >= ? AND start_time < ?`,
+		userID, from, to,
+	).Scan(&grassCount).Error; err != nil {
+		return data, err
+	}
+	data.GrassCount = int(grassCount)
+
+	return data, nil
+}

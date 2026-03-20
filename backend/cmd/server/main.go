@@ -9,6 +9,7 @@ import (
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
 	"github.com/salmon-ai/salmon-ai/internal/service"
+	"github.com/salmon-ai/salmon-ai/pkg/aiclient"
 	"github.com/salmon-ai/salmon-ai/pkg/database"
 )
 
@@ -58,16 +59,22 @@ func main() {
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	statsRepo := repository.NewStatsRepository(db)
 
 	// Service
 	taskSvc := service.NewTaskService(taskRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
+	statsSvc := service.NewStatsService(statsRepo)
+
+	// AI Client
+	aiClient := aiclient.NewClient()
 
 	// Handler
 	taskHandler := handler.NewTaskHandler(taskSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	statsHandler := handler.NewStatsHandler(statsSvc, aiClient)
 
 	// ミドルウェアの登録
 	r := gin.Default()
@@ -107,6 +114,11 @@ func main() {
 	// User
 	r.GET("/user/profile", userHandler.GetProfile)
 	r.PUT("/user/profile", userHandler.UpdateProfile)
+
+	// Stats
+	r.GET("/stats/weekly", statsHandler.GetWeeklyStats)
+	r.GET("/stats/monthly", statsHandler.GetMonthlyStats)
+	r.POST("/ai/stats/comment", statsHandler.PostStatsComment)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)

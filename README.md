@@ -41,3 +41,4 @@ docker compose up --build
 - http://localhost:3000/ - トップページ
 - http://localhost:3000/tasks - タスクリスト
 - http://localhost:3000/time-blocking - タイムブロッキング
+- http://localhost:3000/stats - 統計・進捗サマリー
