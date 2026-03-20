@@ -12,8 +12,9 @@ import (
 )
 
 type Client struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL      string
+	HTTPClient   *http.Client // 通常リクエスト用（ResponseHeaderTimeout あり）
+	StreamClient *http.Client // ストリーミング用（ResponseHeaderTimeout なし）
 }
 
 func NewClient() *Client {
@@ -22,17 +23,20 @@ func NewClient() *Client {
 		baseURL = "http://ai:8000"
 	}
 
-	// ResponseHeaderTimeout: ヘッダー受信までのタイムアウト（ボディ読み取りは対象外）
-	// → 通常リクエストは30秒以内にヘッダーが来ることを保証しつつ、
-	//   ストリーミングのボディ読み取りは無制限で継続できる
+	// 通常リクエスト用: ResponseHeaderTimeout でヘッダー受信までを30秒に制限
+	// ボディ読み取りは対象外なので通常のレスポンスに影響しない
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.ResponseHeaderTimeout = 30 * time.Second
 
+	// ストリーミング用: ResponseHeaderTimeout を設定しない
+	// Gemini がストリーミングを開始するまでの初期化時間が
+	// ResponseHeaderTimeout を超えるとヘッダー受信前にタイムアウトするため
+	streamTransport := http.DefaultTransport.(*http.Transport).Clone()
+
 	return &Client{
-		BaseURL: baseURL,
-		HTTPClient: &http.Client{
-			Transport: transport,
-		},
+		BaseURL:      baseURL,
+		HTTPClient:   &http.Client{Transport: transport},
+		StreamClient: &http.Client{Transport: streamTransport},
 	}
 }
 
@@ -117,13 +121,7 @@ func (c *Client) Stream(path string, body any, callback func([]byte)) error {
 		return fmt.Errorf("failed to join url: %w", err)
 	}
 
-	// ストリーミング用クライアント: ResponseHeaderTimeout を設定しない
-	// Gemini がストリーミングを開始するまでの初期化時間が ResponseHeaderTimeout を
-	// 超えるとヘッダー受信前にタイムアウトするため、ストリームは無制限にする
-	streamTransport := http.DefaultTransport.(*http.Transport).Clone()
-	streamClient := &http.Client{Transport: streamTransport}
-
-	resp, err := streamClient.Post(
+	resp, err := c.StreamClient.Post(
 		targetURL,
 		"application/json",
 		bytes.NewBuffer(jsonBody),
