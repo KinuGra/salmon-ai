@@ -48,6 +48,15 @@ func getUserID() uint {
 	return uint(1)
 }
 
+func parseTime(s string) (time.Time, error) {
+	t, err := time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t, nil
+	}
+	// ミリ秒付きの ISO 文字列にも対応
+	return time.Parse("2006-01-02T15:04:05.999Z07:00", s)
+}
+
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	userID := getUserID()
 
@@ -171,14 +180,10 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	if req.ClearStartTime != nil && *req.ClearStartTime {
 		fields["start_time"] = clause.Expr{SQL: "NULL"}
 	} else if req.StartTime != nil {
-		t, err := time.Parse(time.RFC3339, *req.StartTime)
+		t, err := parseTime(*req.StartTime)
 		if err != nil {
-			// ミリ秒付きの ISO 文字列にも対応
-			t, err = time.Parse("2006-01-02T15:04:05.999Z07:00", *req.StartTime)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format"})
-				return
-			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format"})
+			return
 		}
 		fields["start_time"] = t
 	}
@@ -186,13 +191,10 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	if req.ClearEndTime != nil && *req.ClearEndTime {
 		fields["end_time"] = clause.Expr{SQL: "NULL"}
 	} else if req.EndTime != nil {
-		t, err := time.Parse(time.RFC3339, *req.EndTime)
+		t, err := parseTime(*req.EndTime)
 		if err != nil {
-			t, err = time.Parse("2006-01-02T15:04:05.999Z07:00", *req.EndTime)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format"})
-				return
-			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format"})
+			return
 		}
 		fields["end_time"] = t
 	}
