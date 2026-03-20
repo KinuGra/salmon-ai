@@ -47,7 +47,8 @@ export default function ReportView({
       const newReport: Report = await res.json();
       onReportGenerated(newReport);
       setStatus("done");
-    } catch {
+    } catch (err) {
+      console.error("Failed to generate report:", err);
       setStatus("error");
       setTimeout(() => setStatus("idle"), 3000);
     }
