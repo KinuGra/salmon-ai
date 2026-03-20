@@ -18,7 +18,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
     genai.configure(api_key=api_key)
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.5-flash",
         generation_config=genai.GenerationConfig(
             temperature=0.7,       # 一定のクリエイティビティを許容
             max_output_tokens=2048,
@@ -27,5 +27,12 @@ def generate_report(req: ReportRequest) -> ReportResponse:
 
     prompt = REPORT_PROMPT.format(context=req.context)
     response = model.generate_content(prompt)
+
+    if not response.candidates:
+        raise ValueError(f"No candidates in response. prompt_feedback: {response.prompt_feedback}")
+
+    candidate = response.candidates[0]
+    if not candidate.content.parts:
+        raise ValueError(f"Empty content. finish_reason: {candidate.finish_reason}")
 
     return ReportResponse(content=response.text)

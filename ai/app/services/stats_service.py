@@ -15,10 +15,10 @@ def generate_stats_comment(req: StatsCommentRequest) -> StatsCommentResponse:
     genai.configure(api_key=api_key)
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.5-flash",
         generation_config=genai.GenerationConfig(
             temperature=0.7,
-            max_output_tokens=512,
+            max_output_tokens=4096,
             response_mime_type="application/json",
             response_schema={
                 "type": "object",
