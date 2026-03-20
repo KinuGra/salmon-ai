@@ -109,8 +109,8 @@ export default function ReflectionPage() {
     try {
       const res = await fetch(`${API_BASE}/reports/latest`);
       if (res.ok) setReport(await res.json());
-    } catch {
-      // レポート未生成時は null のまま
+    } catch (err) {
+      console.error("Failed to fetch report:", err);
     }
   }
 
@@ -118,8 +118,8 @@ export default function ReflectionPage() {
     try {
       const res = await fetch(`${API_BASE}/reflections/today`);
       if (res.ok) setTodayReflection(await res.json());
-    } catch {
-      // エラー時は null のまま
+    } catch (err) {
+      console.error("Failed to fetch today's reflection:", err);
     }
   }
 
@@ -127,7 +127,8 @@ export default function ReflectionPage() {
     try {
       const res = await fetch(`${API_BASE}/reflections`);
       if (res.ok) setReflections(await res.json());
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch reflections:", err);
       setReflections([]);
     }
   }

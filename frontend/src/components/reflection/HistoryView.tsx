@@ -109,8 +109,9 @@ function HistoryItem({
       try {
         const res = await fetch(`${API_BASE}/reflections/${reflection.id}/messages`);
         if (res.ok) setMessages(await res.json());
-      } catch {
+      } catch (err) {
         // エラー時は空のまま
+        console.error("Failed to fetch message history:", err);
       } finally {
         setLoading(false);
         setLoaded(true);

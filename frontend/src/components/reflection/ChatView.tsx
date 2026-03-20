@@ -102,7 +102,8 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
   const [isThinking, setIsThinking]     = useState(false);
   const [isStreaming, setIsStreaming]    = useState(false);
   const [cooldown, setCooldown]         = useState(0); // 残り秒数
-  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cooldownRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -122,6 +123,13 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
     }, 1000);
   }
 
+  // アンマウント時にEventSourceをクリーンアップ
+  useEffect(() => {
+    return () => {
+      eventSourceRef.current?.close();
+    };
+  }, []);
+
   // 既存メッセージを読み込み
   useEffect(() => {
     if (!reflectionId) return;
@@ -137,7 +145,7 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
         setMessages([INITIAL_MESSAGES[0], ...loaded]);
         setShowTutorial(false);
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to fetch messages:", err));
   }, [reflectionId]);
 
   // 新メッセージで最下部へスクロール
@@ -165,6 +173,7 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
     const aiMsgId = nextId.current++;
     const url = `${API_BASE}/ai/reflection/stream?reflection_id=${reflectionId}&message=${encodeURIComponent(text)}`;
     const es = new EventSource(url);
+    eventSourceRef.current = es;
 
     es.addEventListener("message", (e) => {
       const chunk: string = e.data;
@@ -180,6 +189,7 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
           { id: aiMsgId, role: "assistant", content: `⏳ ${msg}` },
         ]);
         es.close();
+        eventSourceRef.current = null;
         return;
       }
 
@@ -191,6 +201,7 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
           { id: aiMsgId, role: "assistant", content: chunk.replace(/^error:\s*/, "") },
         ]);
         es.close();
+        eventSourceRef.current = null;
         return;
       }
 
@@ -215,6 +226,7 @@ export default function ChatView({ reflectionId }: { reflectionId: number | null
         prev.map((m) => (m.id === aiMsgId ? { ...m, isStreaming: false } : m))
       );
       es.close();
+      eventSourceRef.current = null;
     };
   }
 

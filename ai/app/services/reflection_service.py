@@ -1,6 +1,7 @@
 import os
 from typing import Generator
 
+import google.genai.errors
 from google import genai
 from google.genai import types
 
@@ -32,7 +33,6 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
         user_message=req.user_message,
     )
 
-    import google.genai.errors
     try:
         for chunk in client.models.generate_content_stream(
             model="gemini-2.0-flash",
