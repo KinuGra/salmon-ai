@@ -105,6 +105,7 @@ func main() {
 	reportHandler := handler.NewReportHandler(reportSvc)
 	reflectionHandler := handler.NewReflectionHandler(reflectionSvc)
 
+
 	// ミドルウェアの登録
 	r := gin.Default()
 	r.Use(middleware.CORS())
