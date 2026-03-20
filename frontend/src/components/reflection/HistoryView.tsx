@@ -8,9 +8,13 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 // ────────────────────────────────────────────
 // 日付フォーマット
 // ────────────────────────────────────────────
+function parseDate(dateStr: string): Date {
+  // バックエンドは "2026-03-20T00:00:00Z" 形式で返す
+  return new Date(dateStr);
+}
+
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("ja-JP", {
+  return parseDate(dateStr).toLocaleDateString("ja-JP", {
     month: "long",
     day: "numeric",
     weekday: "short",
@@ -20,7 +24,8 @@ function formatDate(dateStr: string): string {
 function daysAgoLabel(dateStr: string): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr + "T00:00:00");
+  const target = parseDate(dateStr);
+  target.setHours(0, 0, 0, 0);
   const diff = Math.round(
     (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24)
   );
@@ -113,7 +118,7 @@ function HistoryItem({
     }
   }
 
-  const date = new Date(reflection.date + "T00:00:00");
+  const date = parseDate(reflection.date);
 
   return (
     <div className="border-b border-slate-100 last:border-b-0">
