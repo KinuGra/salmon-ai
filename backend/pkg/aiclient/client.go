@@ -12,8 +12,9 @@ import (
 )
 
 type Client struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL          string
+	HTTPClient       *http.Client
+	streamHTTPClient *http.Client
 }
 
 func NewClient() *Client {
@@ -26,6 +27,9 @@ func NewClient() *Client {
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
+		},
+		streamHTTPClient: &http.Client{
+			Timeout: 0, // ストリーミングはタイムアウトなし
 		},
 	}
 }
@@ -111,7 +115,7 @@ func (c *Client) Stream(path string, body any, callback func([]byte)) error {
 		return fmt.Errorf("failed to join url: %w", err)
 	}
 
-	resp, err := c.HTTPClient.Post(
+	resp, err := c.streamHTTPClient.Post(
 		targetURL,
 		"application/json",
 		bytes.NewBuffer(jsonBody),
