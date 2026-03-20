@@ -97,6 +97,10 @@ func (cb *ContextBuilder) BuildFullContext(userID uint) (string, error) {
 // フォーマットヘルパー
 // ────────────────────────────────────────────
 
+// priorityLabels は優先度の数値ラベルマップです。
+// formatTask から毎回生成されないよう package-level で定義します。
+var priorityLabels = map[int]string{1: "高", 2: "中", 3: "低"}
+
 func formatTask(t model.Task) string {
 	var sb strings.Builder
 
@@ -109,8 +113,7 @@ func formatTask(t model.Task) string {
 	sb.WriteString(fmt.Sprintf("- ステータス: %s\n", status))
 
 	if t.Priority != nil {
-		priorityLabel := map[int]string{1: "高", 2: "中", 3: "低"}
-		if label, ok := priorityLabel[*t.Priority]; ok {
+		if label, ok := priorityLabels[*t.Priority]; ok {
 			sb.WriteString(fmt.Sprintf("- 優先度: %s\n", label))
 		}
 	}

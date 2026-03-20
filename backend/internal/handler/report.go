@@ -26,7 +26,11 @@ func (h *ReportHandler) GetLatestReport(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	report, err := h.svc.GetLatestReport(userID)
 	if err != nil {
@@ -49,7 +53,11 @@ func (h *ReportHandler) GenerateReport(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	report, err := h.svc.GenerateReport(userID)
 	if err != nil {

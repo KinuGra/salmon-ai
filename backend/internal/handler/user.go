@@ -26,7 +26,11 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	user, err := h.svc.GetProfile(userID)
 	if err != nil {
@@ -42,7 +46,11 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	var req UpdateUserProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

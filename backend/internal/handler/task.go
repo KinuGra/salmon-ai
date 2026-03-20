@@ -58,7 +58,11 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	dateStr := c.Query("date")
 	if dateStr != "" {
@@ -90,7 +94,11 @@ func (h *TaskHandler) GetUnscheduledTasks(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	tasks, err := h.svc.GetUnscheduledTasks(userID)
 	if err != nil {
@@ -106,7 +114,11 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	var req CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -145,7 +157,11 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -228,7 +244,11 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

@@ -33,7 +33,11 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	categories, err := h.svc.GetCategories(userID)
 	if err != nil {
@@ -49,7 +53,11 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -76,7 +84,11 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -104,7 +116,11 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	userID := userIDVal.(uint)
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user ID in context is of invalid type"})
+		return
+	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
