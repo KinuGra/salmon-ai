@@ -342,7 +342,7 @@ function AddTaskModal({
   const labelCls = "text-[11px] font-semibold text-slate-500 mb-1.5 block";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center pb-16 sm:pb-0 sm:p-4">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center pb-16 sm:pb-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl p-6">
         <div className="w-8 h-1 rounded-full bg-slate-200 mx-auto mb-5 sm:hidden" />
@@ -436,7 +436,7 @@ function EditTaskModal({
   const labelCls = "text-[11px] font-semibold text-slate-500 mb-1.5 block";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center pb-16 sm:pb-0 sm:p-4">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center pb-16 sm:pb-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl p-6">
         <div className="w-8 h-1 rounded-full bg-slate-200 mx-auto mb-5 sm:hidden" />
@@ -587,7 +587,7 @@ export default function TaskListPage() {
   ).length;
 
   return (
-    <div className="flex flex-col bg-slate-50" style={{ height: "calc(100svh - 4rem)" }}>
+    <div className="flex flex-col bg-slate-50" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
       {/* ── ヘッダー ── */}
       <div className="bg-white/90 backdrop-blur-sm flex-shrink-0 border-b border-slate-100">
         <div className="max-w-2xl mx-auto px-4 pt-5 pb-0">

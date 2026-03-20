@@ -211,7 +211,7 @@ export default function StatsPage() {
   const periodLabel = tab === "weekly" ? "先週" : "先月";
 
   return (
-    <div className="flex flex-col bg-slate-50" style={{ height: "calc(100svh - 4rem)" }}>
+    <div className="flex flex-col bg-slate-50" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
       <div className="flex-1 overflow-y-auto">
       <div className="max-w-lg mx-auto px-4 pt-8">
         <h1 className="text-[22px] font-bold text-slate-900 mb-6">統計・進捗サマリー</h1>

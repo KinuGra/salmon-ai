@@ -147,7 +147,7 @@ export default function ReflectionPage() {
   );
 
   return (
-    <div className="flex flex-col bg-white overflow-hidden" style={{ height: "calc(100svh - 4rem)" }}>
+    <div className="flex flex-col bg-white overflow-hidden" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
 
       {/* ── ヘッダー ── */}
       <header className="bg-white/90 backdrop-blur-sm border-b border-slate-100 flex-shrink-0 z-10">
