@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Task } from "./types";
 import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
@@ -341,7 +342,7 @@ function AddTaskModal({
   const labelCls = "text-[11px] font-semibold text-slate-500 mb-1.5 block";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center pb-16 sm:pb-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl p-6">
         <div className="w-8 h-1 rounded-full bg-slate-200 mx-auto mb-5 sm:hidden" />
@@ -435,7 +436,7 @@ function EditTaskModal({
   const labelCls = "text-[11px] font-semibold text-slate-500 mb-1.5 block";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center pb-16 sm:pb-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl p-6">
         <div className="w-8 h-1 rounded-full bg-slate-200 mx-auto mb-5 sm:hidden" />
@@ -481,6 +482,8 @@ function EditTaskModal({
 export default function TaskListPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     Promise.all([
@@ -553,6 +556,15 @@ export default function TaskListPage() {
     }
   }
   const [showAdd, setShowAdd] = useState(false);
+
+  // BottomNav の + ボタンから ?new=1 で遷移してきた場合、モーダルを自動オープン
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowAdd(true);
+      router.replace("/tasks");
+    }
+  }, [searchParams, router]);
+
   const [filter, setFilter] = useState<"all" | "active" | "done">("active");
 
   const filtered = tasks.filter((t) => {
@@ -575,9 +587,9 @@ export default function TaskListPage() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="flex flex-col bg-slate-50" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
       {/* ── ヘッダー ── */}
-      <div className="bg-white/90 backdrop-blur-sm sticky top-0 z-30 border-b border-slate-100">
+      <div className="bg-white/90 backdrop-blur-sm flex-shrink-0 border-b border-slate-100">
         <div className="max-w-2xl mx-auto px-4 pt-5 pb-0">
           {/* タイトル行 */}
           <div className="flex items-start justify-between mb-4">
@@ -646,6 +658,7 @@ export default function TaskListPage() {
       </div>
 
       {/* ── タスクリスト ── */}
+      <div className="flex-1 overflow-y-auto">
       <div className="max-w-2xl mx-auto px-4 py-4">
         {sorted.length === 0 ? (
           <div className="text-center py-16">
@@ -669,15 +682,7 @@ export default function TaskListPage() {
           </div>
         )}
       </div>
-
-      {/* ── フローティング追加ボタン（スマホ用・lg以下で表示） ── */}
-      <button
-        onClick={() => setShowAdd(true)}
-        className="fixed bottom-6 right-5 lg:hidden w-14 h-14 rounded-2xl bg-indigo-600 text-white text-[28px] font-light flex items-center justify-center shadow-xl hover:bg-indigo-700 active:scale-95 transition-all z-20"
-        aria-label="タスクを追加"
-      >
-        +
-      </button>
+      </div>
 
       {/* ── タスク追加モーダル ── */}
       {showAdd && (

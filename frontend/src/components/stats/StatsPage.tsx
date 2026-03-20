@@ -211,7 +211,8 @@ export default function StatsPage() {
   const periodLabel = tab === "weekly" ? "先週" : "先月";
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="flex flex-col bg-slate-50" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
+      <div className="flex-1 overflow-y-auto">
       <div className="max-w-lg mx-auto px-4 pt-8">
         <h1 className="text-[22px] font-bold text-slate-900 mb-6">統計・進捗サマリー</h1>
 
@@ -293,6 +294,7 @@ export default function StatsPage() {
         ) : (
           <p className="text-center text-slate-400 text-[13px] py-16">データを取得できませんでした</p>
         )}
+      </div>
       </div>
     </div>
   );

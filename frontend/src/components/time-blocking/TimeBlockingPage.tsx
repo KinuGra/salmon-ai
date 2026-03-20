@@ -401,7 +401,7 @@ export default function TimeBlockingPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="bg-slate-50 flex flex-col" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
       {errorMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white text-[12px] font-semibold px-4 py-2 rounded-xl shadow-lg pointer-events-none">
           {errorMessage}
