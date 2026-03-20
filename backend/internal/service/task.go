@@ -1,18 +1,30 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
+	"github.com/salmon-ai/salmon-ai/pkg/aiclient"
 )
 
 type TaskService struct {
-	repo *repository.TaskRepository
+	repo         *repository.TaskRepository
+	userRepo     *repository.UserRepository
+	categoryRepo *repository.CategoryRepository
+        aiClient     *aiclient.Client
 }
 
-func NewTaskService(repo *repository.TaskRepository) *TaskService {
-	return &TaskService{repo: repo}
+func NewTaskService(repo *repository.TaskRepository, userRepo *repository.UserRepository, categoryRepo *repository.CategoryRepository, aiClient *aiclient.Client) *TaskService {
+        return &TaskService{
+                repo:         repo,
+                userRepo:     userRepo,
+                categoryRepo: categoryRepo,
+                aiClient:     aiClient,
+        }
 }
 
 func (s *TaskService) GetTasks(userID uint) ([]model.Task, error) {
@@ -28,6 +40,51 @@ func (s *TaskService) GetUnscheduledTasks(userID uint) ([]model.Task, error) {
 }
 
 func (s *TaskService) CreateTask(task *model.Task) error {
+	// AI見積もり用のリクエストを準備
+	reqPayload := struct {
+		Title       string  `json:"title"`
+		Description *string `json:"description,omitempty"`
+		Category    *string `json:"category,omitempty"`
+		UserContext *string `json:"user_context,omitempty"`
+	}{
+		Title:       task.Title,
+		Description: task.Description,
+	}
+
+	// UserContext の取得
+	if user, err := s.userRepo.FindByID(task.UserID); err == nil && user != nil {
+		reqPayload.UserContext = user.UserContext
+	} else if err != nil {
+		log.Printf("ユーザー情報の取得に失敗しました (userID: %d): %v", task.UserID, err)
+	}
+
+	// カテゴリ名の取得
+	if task.CategoryID != nil {
+		if cat, err := s.categoryRepo.FindByIDAndUserID(*task.CategoryID, task.UserID); err == nil {
+			reqPayload.Category = &cat.Name
+		} else {
+			log.Printf("カテゴリ情報の個別取得に失敗しました (userID: %d, categoryID: %d): %v", task.UserID, *task.CategoryID, err)
+		}
+	}
+
+	// aiclientを使ってAIに見積もりをリクエストし、結果をタスクにセット
+	
+	if data, err := s.aiClient.Post("/estimate", reqPayload); err == nil {
+		var aiResp struct {
+			EstimatedHours float64 `json:"estimated_hours"`
+			Reasoning      string  `json:"reasoning"`
+		}
+		if err := json.Unmarshal(data, &aiResp); err == nil {
+			task.AiEstimatedHours = &aiResp.EstimatedHours
+			task.AiEstimationReason = &aiResp.Reasoning
+			fmt.Printf("[AI Estimate Result] Title: %s -> %.1fh (Reason: %s)\n", task.Title, aiResp.EstimatedHours, aiResp.Reasoning)
+		} else {
+			log.Printf("AI見積もりレスポンスのパースに失敗しました: %v", err)
+		}
+	} else {
+		log.Printf("AI見積もりの取得に失敗しました: %v", err)
+	}
+
 	return s.repo.Create(task)
 }
 

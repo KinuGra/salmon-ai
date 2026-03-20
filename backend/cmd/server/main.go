@@ -83,14 +83,14 @@ func main() {
 	reflectionMessageRepo := repository.NewReflectionMessageRepository(db)
 	reportRepo := repository.NewReportRepository(db)
 
-	// ── AI Client ───────────────────────────────────────────
-	aiClient := aiclient.NewClient()
+        // ── AI Client ───────────────────────────────────────────
+        aiClient := aiclient.NewClient()
 
-	// ── ContextBuilder ──────────────────────────────────────
-	contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
+        // ── ContextBuilder ──────────────────────────────────────
+        contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
 
-	// ── Service ─────────────────────────────────────────────
-	taskSvc := service.NewTaskService(taskRepo)
+        // ── Service ─────────────────────────────────────────────
+        taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo, aiClient)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
 	statsSvc := service.NewStatsService(statsRepo)
@@ -164,3 +164,4 @@ func main() {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
+

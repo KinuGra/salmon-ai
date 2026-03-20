@@ -221,7 +221,12 @@ export default function TimeBlockingPage() {
   const [dropIndicator, setDropIndicator] = useState<{ top: number; bottom: number } | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
-  const quoteIdx = useRef(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
+  // SSR時のHydrationエラーを防ぐため、初期状態は固定値またはnullにし、クライアントサイドでランダムな値を設定する
+  const [quoteIdx, setQuoteIdx] = useState(0);
+
+  useEffect(() => {
+    setQuoteIdx(Math.floor(Math.random() * MOTIVATION_QUOTES.length));
+  }, []);
 
   // ③ 選択日付でタイムラインのタスクをフィルタリング
   // 本番では selectedDate を queryKey に含めた TanStack Query に置き換える
@@ -415,7 +420,7 @@ export default function TimeBlockingPage() {
           <div className="relative mt-0.5">
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[160px]">
               <p className="text-[11px] font-semibold text-indigo-700 leading-snug text-right">
-                {MOTIVATION_QUOTES[quoteIdx.current]}
+                {MOTIVATION_QUOTES[quoteIdx]}
               </p>
             </div>
             <div className="absolute -top-1 right-1 w-2 h-2 bg-indigo-50 border-t border-r border-indigo-100 rotate-45" />

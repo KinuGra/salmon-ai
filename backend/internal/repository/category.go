@@ -19,6 +19,14 @@ func (r *CategoryRepository) FindByUserID(userID uint) ([]model.Category, error)
 	return categories, err
 }
 
+func (r *CategoryRepository) FindByIDAndUserID(id uint, userID uint) (*model.Category, error) {
+	var category model.Category
+	if err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&category).Error; err != nil {
+		return nil, err
+	}
+	return &category, nil
+}
+
 func (r *CategoryRepository) Create(category *model.Category) error {
 	return r.db.Create(category).Error
 }
