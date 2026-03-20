@@ -23,7 +23,7 @@ export default function TaskListItem({ task, onEdit }: Props) {
   const handleMouseLeave = () => {
     closeTimeoutRef.current = setTimeout(() => {
       setPopoverOpen(false);
-    }, 250);
+    }, 400);
   };
 
   const color = task.category?.color ?? "#94a3b8";
@@ -182,16 +182,17 @@ export default function TaskListItem({ task, onEdit }: Props) {
                 {hasAlert && <span className="font-extrabold">！</span>}
               </button>
 
-              {/* ポップオーバー */}
+              {/* ポップオーバー（ホバー領域が途切れないように透明なラッパーで余白を埋める） */}
               {popoverOpen && (
-                <div
-                  className="absolute right-0 top-8 z-50 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-3"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* 吹き出し三角 */}
-                  <div className="absolute -top-1.5 right-3 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45" />
+                <div className="absolute right-0 top-full pt-2 z-50">
+                  <div
+                    className="w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 relative cursor-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* 吹き出し三角 */}
+                    <div className="absolute -top-1.5 right-4 w-3 h-3 bg-white border-t border-l border-slate-200 rotate-45" />
 
-                  <p className="text-[11px] font-bold text-slate-700 mb-2">
+                    <p className="text-[11px] font-bold text-slate-700 mb-2">
                     AIの見積もり詳細
                   </p>
 
@@ -279,6 +280,7 @@ export default function TaskListItem({ task, onEdit }: Props) {
                       "✦ 再見積もり"
                     )}
                   </button>
+                  </div>
                 </div>
               )}
             </div>
