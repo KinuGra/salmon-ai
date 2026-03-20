@@ -35,7 +35,7 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
 
     try:
         for chunk in client.models.generate_content_stream(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.7,
