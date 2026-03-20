@@ -46,7 +46,7 @@ export function toLocalDateStr(d: Date): string {
 // ────────────────────────────────────────────
 // 共通: 見積もり時間入力
 // ────────────────────────────────────────────
-function DurationInput({
+export function DurationInput({
   initialMins,
   onChange,
 }: {
@@ -148,7 +148,7 @@ function DurationInput({
 // ────────────────────────────────────────────
 // 共通: 期限入力
 // ────────────────────────────────────────────
-function DueDateInput({
+export function DueDateInput({
   initialDate,
   onChange,
 }: {
@@ -275,7 +275,7 @@ function DueDateInput({
 // ────────────────────────────────────────────
 // カテゴリ選択
 // ────────────────────────────────────────────
-function CategorySelect({
+export function CategorySelect({
   categories,
   value,
   onChange,
