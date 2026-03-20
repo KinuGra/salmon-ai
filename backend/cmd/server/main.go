@@ -60,7 +60,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 
 	// Service
-	taskSvc := service.NewTaskService(taskRepo)
+	taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
 

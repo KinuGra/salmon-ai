@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log"
 	"time"
 
 	"github.com/salmon-ai/salmon-ai/internal/model"
@@ -8,11 +9,17 @@ import (
 )
 
 type TaskService struct {
-	repo *repository.TaskRepository
+	repo         *repository.TaskRepository
+	userRepo     *repository.UserRepository
+	categoryRepo *repository.CategoryRepository
 }
 
-func NewTaskService(repo *repository.TaskRepository) *TaskService {
-	return &TaskService{repo: repo}
+func NewTaskService(repo *repository.TaskRepository, userRepo *repository.UserRepository, categoryRepo *repository.CategoryRepository) *TaskService {
+	return &TaskService{
+		repo:         repo,
+		userRepo:     userRepo,
+		categoryRepo: categoryRepo,
+	}
 }
 
 func (s *TaskService) GetTasks(userID uint) ([]model.Task, error) {
@@ -28,6 +35,40 @@ func (s *TaskService) GetUnscheduledTasks(userID uint) ([]model.Task, error) {
 }
 
 func (s *TaskService) CreateTask(task *model.Task) error {
+	// AI見積もり用のリクエストを準備
+	reqPayload := AIEstimateRequest{
+		Title:       task.Title,
+		Description: task.Description,
+	}
+
+	// UserContext の取得
+	if user, err := s.userRepo.FindByID(task.UserID); err == nil && user != nil {
+		reqPayload.UserContext = user.UserContext
+	} else if err != nil {
+		log.Printf("ユーザー情報の取得に失敗しました (userID: %d): %v", task.UserID, err)
+	}
+
+	// カテゴリ名の取得
+	if task.CategoryID != nil {
+		if categories, err := s.categoryRepo.FindByUserID(task.UserID); err == nil {
+			for _, cat := range categories {
+				if cat.ID == *task.CategoryID {
+					reqPayload.Category = &cat.Name
+					break
+				}
+			}
+		} else {
+			log.Printf("カテゴリ情報の取得に失敗しました (userID: %d): %v", task.UserID, err)
+		}
+	}
+
+	// AIに見積もりをリクエストし、結果をタスクにセット
+	if resp, err := callAIEstimate(reqPayload); err == nil && resp != nil {
+		task.AiEstimatedHours = &resp.EstimatedHours
+	} else {
+		log.Printf("AI見積もりの取得に失敗しました: %v", err)
+	}
+
 	return s.repo.Create(task)
 }
 
