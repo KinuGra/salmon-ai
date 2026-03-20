@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 )
 
 type Client struct {
@@ -17,12 +19,14 @@ type Client struct {
 func NewClient() *Client {
 	baseURL := os.Getenv("AI_SERVICE_URL")
 	if baseURL == "" {
-		baseURL = "http://localhost:8000"
+		baseURL = "http://ai:8000"
 	}
 
 	return &Client{
-		BaseURL:    baseURL,
-		HTTPClient: &http.Client{},
+		BaseURL: baseURL,
+		HTTPClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -32,8 +36,13 @@ func (c *Client) Post(path string, body any) ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
+	targetURL, err := url.JoinPath(c.BaseURL, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to join url: %w", err)
+	}
+
 	resp, err := c.HTTPClient.Post(
-		c.BaseURL+path,
+		targetURL,
 		"application/json",
 		bytes.NewBuffer(jsonBody),
 	)
@@ -41,6 +50,11 @@ func (c *Client) Post(path string, body any) ([]byte, error) {
 		return nil, fmt.Errorf("failed to post request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -51,7 +65,12 @@ func (c *Client) Post(path string, body any) ([]byte, error) {
 }
 
 func (c *Client) Get(path string, params map[string]string) ([]byte, error) {
-	req, err := http.NewRequest("GET", c.BaseURL+path, nil)
+	targetURL, err := url.JoinPath(c.BaseURL, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to join url: %w", err)
+	}
+
+	req, err := http.NewRequest("GET", targetURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -67,6 +86,11 @@ func (c *Client) Get(path string, params map[string]string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
