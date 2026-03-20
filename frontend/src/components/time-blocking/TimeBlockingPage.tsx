@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Task, ScheduleResponse } from "./types";
+import EditTaskModal, { Category } from "../task-list/EditTaskModal";
 
 const API_BASE = "http://localhost:8080";
 import {
@@ -62,19 +63,19 @@ function DateNav({
             key={i}
             onClick={() => onChange(new Date(day))}
             className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${isSelected
-                ? "bg-indigo-600 shadow-sm"
-                : "hover:bg-slate-100 active:scale-95"
+              ? "bg-indigo-600 shadow-sm"
+              : "hover:bg-slate-100 active:scale-95"
               }`}
           >
             {/* 曜日 */}
             <span
               className={`text-[9px] font-semibold mb-0.5 leading-none ${isSelected
-                  ? "text-indigo-200"
-                  : isSat
-                    ? "text-blue-400"
-                    : isSun
-                      ? "text-red-400"
-                      : "text-slate-400"
+                ? "text-indigo-200"
+                : isSat
+                  ? "text-blue-400"
+                  : isSun
+                    ? "text-red-400"
+                    : "text-slate-400"
                 }`}
             >
               {DAY_LABELS[dow]}
@@ -82,10 +83,10 @@ function DateNav({
             {/* 日付 */}
             <span
               className={`text-[14px] font-bold leading-none ${isSelected
-                  ? "text-white"
-                  : isToday
-                    ? "text-indigo-600"
-                    : "text-slate-800"
+                ? "text-white"
+                : isToday
+                  ? "text-indigo-600"
+                  : "text-slate-800"
                 }`}
             >
               {day.getDate()}
@@ -260,6 +261,8 @@ function AIModal({
 // ────────────────────────────────────────────
 export default function TimeBlockingPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function showError(msg: string) {
@@ -275,12 +278,79 @@ export default function TimeBlockingPage() {
   }, []);
 
   useEffect(() => {
+    fetch(`${API_BASE}/categories`)
+      .then((r) => r.json())
+      .then((data: Category[]) => setCategories(data))
+      .catch((e) => console.error("カテゴリ取得エラー:", e));
+  }, []);
+
+  useEffect(() => {
     if (!selectedDate) return;
     fetch(`${API_BASE}/tasks`)
       .then((r) => r.json())
       .then((data: Task[]) => setTasks(data))
       .catch((e) => console.error("タスク取得エラー:", e));
   }, [selectedDate]);
+
+  async function handleUpdateTask(updated: Task, categoryId: number | null) {
+    try {
+      // タイムブロック済み & estimated_hours が変わった場合は end_time を再計算して PUT に含める
+      let newEndTime: string | undefined = undefined;
+      const original = tasks.find((t) => t.id === updated.id);
+      if (
+        updated.start_time &&
+        updated.estimated_hours != null &&
+        original?.estimated_hours !== updated.estimated_hours
+      ) {
+        const startMs = new Date(updated.start_time).getTime();
+        const endDate = new Date(startMs + updated.estimated_hours * 3600 * 1000);
+        newEndTime = endDate.toISOString().slice(0, 19) + "Z";
+      }
+
+      const body: Record<string, unknown> = {
+        title: updated.title,
+        description: updated.description,
+        priority: updated.priority,
+        estimated_hours: updated.estimated_hours,
+        due_date: updated.due_date,
+        category_id: categoryId,
+      };
+      if (newEndTime !== undefined) {
+        body.end_time = newEndTime;
+      }
+
+      const res = await fetch(`${API_BASE}/tasks/${updated.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const saved: Task = await res.json();
+      // オプティミスティック更新: end_time も反映する
+      setTasks((prev: Task[]) =>
+        prev.map((t) =>
+          t.id === saved.id
+            ? { ...saved, end_time: newEndTime ?? saved.end_time }
+            : t
+        )
+      );
+    } catch (e) {
+      console.error("タスク更新エラー:", e);
+      showError("タスクを更新できませんでした。");
+    }
+  }
+
+  async function handleDeleteTask(id: number) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setTasks((prev: Task[]) => prev.filter((t) => t.id !== id));
+      setEditingTask(null);
+    } catch (e) {
+      console.error("タスク削除エラー:", e);
+      showError("タスクを削除できませんでした。");
+    }
+  }
   // D&D中のドロップ位置インジケーター（top/bottom px）
   const [dropIndicator, setDropIndicator] = useState<{
     top: number;
@@ -606,6 +676,7 @@ export default function TimeBlockingPage() {
                   key={task.id}
                   task={task}
                   onAchievementChange={handleAchievementChange}
+                  onEdit={setEditingTask}
                 />
               ))}
             </div>
@@ -613,17 +684,28 @@ export default function TimeBlockingPage() {
         </div>
 
         {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
-        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} />
+        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} />
       </div>
 
       {/* モバイル専用インボックスDrawer（PCでは非表示） */}
-      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} />
+      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} />
 
       {/* AIモーダル */}
       {showAI && (
         <AIModal
           selectedDate={selectedDate}
           onClose={() => setShowAI(false)}
+        />
+      )}
+
+      {/* タスク編集モーダル */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onUpdate={handleUpdateTask}
+          onDelete={handleDeleteTask}
+          categories={categories}
         />
       )}
     </div>

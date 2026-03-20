@@ -15,6 +15,7 @@ const ACHIEVEMENT_OPTIONS = [0, 30, 70, 100] as const;
 type Props = {
   task: Task;
   onAchievementChange: (id: number, value: number) => void;
+  onEdit: (task: Task) => void;
 };
 
 // ────────────────────────────────────────────
@@ -190,7 +191,7 @@ function AiAlertPopover({
 // ────────────────────────────────────────────
 // タスクブロック本体
 // ────────────────────────────────────────────
-export default function TaskBlock({ task, onAchievementChange }: Props) {
+export default function TaskBlock({ task, onAchievementChange, onEdit }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   if (!task.start_time) return null;
@@ -250,6 +251,7 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         setTimeout(() => setIsDragging(true), 0);
       }}
       onDragEnd={() => setIsDragging(false)}
+      onClick={() => onEdit(task)}
       className="absolute left-0 right-1 rounded-xl overflow-visible transition-all flex flex-col cursor-grab active:cursor-grabbing"
       style={{
         top,
@@ -295,14 +297,16 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         </div>
 
         {/* 右: 達成度セグメントコントロール（常に表示・コンパクト固定） */}
-        <AchievementSegment
-          taskId={task.id}
-          value={task.achievement_rate}
-          borderColor={borderColor}
-          accentColor={accentColor}
-          metaColor={metaColor}
-          onChange={onAchievementChange}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <AchievementSegment
+            taskId={task.id}
+            value={task.achievement_rate}
+            borderColor={borderColor}
+            accentColor={accentColor}
+            metaColor={metaColor}
+            onChange={onAchievementChange}
+          />
+        </div>
       </div>
 
       {/* ── 下段: 見込み時間 + AIアラート（通常ブロックのみ） ── */}

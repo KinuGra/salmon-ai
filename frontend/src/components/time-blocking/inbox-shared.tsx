@@ -18,7 +18,7 @@ export function sortInbox(tasks: Task[]): Task[] {
   });
 }
 
-export function InboxChip({ task }: { task: Task }) {
+export function InboxChip({ task, onEdit }: { task: Task; onEdit?: (task: Task) => void }) {
   function handleDragStart(e: React.DragEvent) {
     // D&D でドロップ先にタスクIDを渡す
     e.dataTransfer.setData("taskId", String(task.id));
@@ -81,6 +81,15 @@ export function InboxChip({ task }: { task: Task }) {
         >
           {PRIORITY_LABEL[task.priority]}
         </span>
+        {onEdit && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+            className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-200 active:scale-90 transition-all"
+            aria-label="タスクを編集"
+          >
+            <span className="text-[12px] text-slate-400 leading-none">✎</span>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -7,9 +7,10 @@ import { useInboxDropZone } from "./useInboxDropZone";
 type Props = {
   tasks: Task[];
   onReturnToInbox: (taskId: number) => void;
+  onEdit?: (task: Task) => void;
 };
 
-export default function InboxSidebar({ tasks, onReturnToInbox }: Props) {
+export default function InboxSidebar({ tasks, onReturnToInbox, onEdit }: Props) {
   const { isDragOver, handleDragOver, handleDragLeave, handleDrop } =
     useInboxDropZone({ onReturnToInbox });
   const sorted = sortInbox(tasks);
@@ -45,7 +46,7 @@ export default function InboxSidebar({ tasks, onReturnToInbox }: Props) {
             未配置のタスクはありません
           </p>
         ) : (
-          sorted.map((t) => <InboxChip key={t.id} task={t} />)
+          sorted.map((t) => <InboxChip key={t.id} task={t} onEdit={onEdit} />)
         )}
       </div>
 
