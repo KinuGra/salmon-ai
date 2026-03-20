@@ -97,7 +97,10 @@ func (h *StatsHandler) PostStatsComment(c *gin.Context) {
 		return
 	}
 
-	var result any
+	var result struct {
+		Comment       string `json:"comment"`
+		FollowMessage string `json:"follow_message"`
+	}
 	if err := json.Unmarshal(respBytes, &result); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse AI response"})
 		return
