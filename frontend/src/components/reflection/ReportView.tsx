@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Report } from "./types";
 import MarkdownRenderer from "./MarkdownRenderer";
 
@@ -19,6 +19,12 @@ function formatDate(isoString: string): string {
 export default function ReportView({ report }: { report: Report }) {
   const [status, setStatus] = useState<Status>("idle");
 
+  useEffect(() => {
+    if (status !== "done") return;
+    const timer = setTimeout(() => setStatus("idle"), 2500);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   function handleGenerate() {
     if (status === "loading") return;
     setStatus("loading");
@@ -26,7 +32,6 @@ export default function ReportView({ report }: { report: Report }) {
     console.log("[API] POST /ai/report/generate");
     setTimeout(() => {
       setStatus("done");
-      setTimeout(() => setStatus("idle"), 2500);
     }, 2200);
   }
 
