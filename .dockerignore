@@ -11,3 +11,5 @@ frontend/*.env
 **/__pycache__/
 **/*.pyc
 **/.git/
+**/node_modules/
+**/.next/
