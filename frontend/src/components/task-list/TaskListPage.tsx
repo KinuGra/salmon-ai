@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Task } from "./types";
 import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
@@ -481,6 +482,8 @@ function EditTaskModal({
 export default function TaskListPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     Promise.all([
@@ -553,6 +556,15 @@ export default function TaskListPage() {
     }
   }
   const [showAdd, setShowAdd] = useState(false);
+
+  // BottomNav の + ボタンから ?new=1 で遷移してきた場合、モーダルを自動オープン
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowAdd(true);
+      router.replace("/tasks");
+    }
+  }, [searchParams, router]);
+
   const [filter, setFilter] = useState<"all" | "active" | "done">("active");
 
   const filtered = tasks.filter((t) => {
