@@ -28,4 +28,11 @@ def generate_report(req: ReportRequest) -> ReportResponse:
         ),
     )
 
+    if not response.candidates:
+        raise ValueError(f"No candidates in response. prompt_feedback: {response.prompt_feedback}")
+
+    candidate = response.candidates[0]
+    if not candidate.content.parts:
+        raise ValueError(f"Empty content. finish_reason: {candidate.finish_reason}")
+
     return ReportResponse(content=response.text)

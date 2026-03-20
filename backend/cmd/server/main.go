@@ -64,6 +64,7 @@ func main() {
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	statsRepo := repository.NewStatsRepository(db)
 	reflectionRepo := repository.NewReflectionRepository(db)
 	reflectionMessageRepo := repository.NewReflectionMessageRepository(db)
 	reportRepo := repository.NewReportRepository(db)
@@ -78,6 +79,7 @@ func main() {
 	taskSvc := service.NewTaskService(taskRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
+	statsSvc := service.NewStatsService(statsRepo)
 	reportSvc := service.NewReportService(reportRepo, contextBuilder, aiClient)
 	reflectionSvc := service.NewReflectionService(reflectionRepo, reflectionMessageRepo, contextBuilder, aiClient)
 
@@ -85,6 +87,7 @@ func main() {
 	taskHandler := handler.NewTaskHandler(taskSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	statsHandler := handler.NewStatsHandler(statsSvc, aiClient)
 	reportHandler := handler.NewReportHandler(reportSvc)
 	reflectionHandler := handler.NewReflectionHandler(reflectionSvc)
 
@@ -126,6 +129,12 @@ func main() {
 	// User
 	r.GET("/user/profile", userHandler.GetProfile)
 	r.PUT("/user/profile", userHandler.UpdateProfile)
+
+	// Stats
+	r.GET("/stats/weekly", statsHandler.GetWeeklyStats)
+	r.GET("/stats/monthly", statsHandler.GetMonthlyStats)
+	r.GET("/stats/grass", statsHandler.GetGrass)
+	r.POST("/ai/stats/comment", statsHandler.PostStatsComment)
 
 	// Reports（自己分析レポート）
 	r.GET("/reports/latest", reportHandler.GetLatestReport)
