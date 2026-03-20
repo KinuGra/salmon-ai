@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"gorm.io/gorm"
 )
@@ -21,4 +23,25 @@ func (r *ReflectionRepository) FindAllByUserID(userID uint) ([]model.Reflection,
 		Order("date DESC").
 		Find(&reflections).Error
 	return reflections, err
+}
+
+// FindOrCreateByDate は指定日付の振り返りを取得し、なければ新規作成して返します。
+func (r *ReflectionRepository) FindOrCreateByDate(userID uint, date time.Time) (*model.Reflection, error) {
+	var reflection model.Reflection
+	result := r.db.Where("user_id = ? AND date = ?", userID, date).First(&reflection)
+	if result.Error == nil {
+		return &reflection, nil
+	}
+	if result.Error != gorm.ErrRecordNotFound {
+		return nil, result.Error
+	}
+
+	reflection = model.Reflection{
+		UserID: userID,
+		Date:   date,
+	}
+	if err := r.db.Create(&reflection).Error; err != nil {
+		return nil, err
+	}
+	return &reflection, nil
 }
