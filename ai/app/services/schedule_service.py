@@ -24,6 +24,7 @@ def support(req: ScheduleRequest) -> ScheduleResponse:
         tasks=tasks_text,
     )
 
+    print(f"[schedule/support] prompt length: {len(prompt)} chars", flush=True)
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set")
@@ -34,12 +35,14 @@ def support(req: ScheduleRequest) -> ScheduleResponse:
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
-            max_output_tokens=1024,
+            response_mime_type="application/json",
         ),
     )
 
     # マークダウンのコードブロックを除去
     text = response.text.strip()
+    finish_reason = response.candidates[0].finish_reason if response.candidates else "unknown"
+    print(f"[schedule/support] finish_reason: {finish_reason}", flush=True)
     text = re.sub(r"^```json\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     result = json.loads(text)
