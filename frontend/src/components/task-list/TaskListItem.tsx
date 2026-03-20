@@ -27,7 +27,9 @@ export default function TaskListItem({ task, onEdit, onToggleComplete }: Props) 
   };
 
   const color = task.category?.color ?? "#94a3b8";
-  const priority = PRIORITY_META[task.priority] ?? PRIORITY_META[3];
+  const priority = task.priority != null
+    ? PRIORITY_META[task.priority]
+    : { label: "未設定", color: "#94a3b8", bg: "#f1f5f9" };
   const due = dueDateMeta(task.due_date);
 
   const aiDiff =

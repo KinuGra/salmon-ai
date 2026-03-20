@@ -46,7 +46,7 @@ export function toLocalDateStr(d: Date): string {
 // ────────────────────────────────────────────
 // 共通: 見積もり時間入力
 // ────────────────────────────────────────────
-function DurationInput({
+export function DurationInput({
   initialMins,
   onChange,
 }: {
@@ -76,6 +76,12 @@ function DurationInput({
     const mins = h !== "" || m !== "0" ? parseInt(h || "0") * 60 + parseInt(m) : null;
     onChange(mins);
   }
+  function handleClear() {
+    setSelectedMins(null);
+    setCustomH("");
+    setCustomM("0");
+    onChange(null);
+  }
 
   return (
     <div>
@@ -102,6 +108,15 @@ function DurationInput({
             {label}
           </button>
         ))}
+        {durationMins !== null && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-400 hover:border-red-300 hover:text-red-500 transition-all active:scale-95"
+          >
+            クリア
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <input
@@ -133,7 +148,7 @@ function DurationInput({
 // ────────────────────────────────────────────
 // 共通: 期限入力
 // ────────────────────────────────────────────
-function DueDateInput({
+export function DueDateInput({
   initialDate,
   onChange,
 }: {
@@ -260,7 +275,7 @@ function DueDateInput({
 // ────────────────────────────────────────────
 // カテゴリ選択
 // ────────────────────────────────────────────
-function CategorySelect({
+export function CategorySelect({
   categories,
   value,
   onChange,
@@ -301,7 +316,7 @@ export default function EditTaskModal({
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
-  const [priority, setPriority] = useState(String(task.priority ?? 2));
+  const [priority, setPriority] = useState(task.priority != null ? String(task.priority) : "");
   const [categoryId, setCategoryId] = useState<number | null>(task.category?.id ?? null);
 
   const initMins = task.estimated_hours != null ? Math.round(task.estimated_hours * 60) : null;
@@ -312,7 +327,7 @@ export default function EditTaskModal({
 
   function handleSave() {
     if (!title.trim()) return;
-    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority) as 1 | 2 | 3, estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null }, categoryId);
+    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: priority !== "" ? parseInt(priority) as 1 | 2 | 3 : null, estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null }, categoryId);
     onClose();
   }
 
@@ -342,6 +357,7 @@ export default function EditTaskModal({
           <div>
             <label className={labelCls}>優先度</label>
             <select value={priority} onChange={(e) => setPriority(e.target.value)} className={`${inputCls} bg-white`}>
+              <option value="">未設定</option>
               <option value="1">高</option>
               <option value="2">中</option>
               <option value="3">低</option>

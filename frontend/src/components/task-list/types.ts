@@ -2,7 +2,7 @@ export type Task = {
   id: number;
   title: string;
   description: string | null;
-  priority: 1 | 2 | 3;
+  priority: 1 | 2 | 3 | null;
   is_completed: boolean;
   estimated_hours: number | null;
   ai_estimated_hours: number | null;
