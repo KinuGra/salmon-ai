@@ -48,7 +48,11 @@ func getUserID(c *gin.Context) (uint, bool) {
 	if !exists {
 		return 0, false
 	}
-	return userID.(uint), true
+	uid, ok := userID.(uint)
+	if !ok {
+		return 0, false
+	}
+	return uid, true
 }
 
 func parseTime(s string) (time.Time, error) {
