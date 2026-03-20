@@ -12,9 +12,10 @@ type Task struct {
 	Description      *string    `json:"description"`
 	Priority         *int       `gorm:"default:2" json:"priority"`
 	IsCompleted      bool       `gorm:"not null;default:false" json:"is_completed"`
-	EstimatedHours   *float64   `json:"estimated_hours"`
-	AiEstimatedHours *float64   `json:"ai_estimated_hours"`
-	StartTime        *time.Time `gorm:"index" json:"start_time"`
+	EstimatedHours     *float64   `json:"estimated_hours"`
+	AiEstimatedHours   *float64   `json:"ai_estimated_hours"`
+	AiEstimationReason *string    `json:"ai_estimation_reason"`
+	StartTime          *time.Time `gorm:"index" json:"start_time"`
 	EndTime          *time.Time `json:"end_time"`
 	DueDate          *time.Time `json:"due_date"`
 	AchievementRate  *int       `json:"achievement_rate"`

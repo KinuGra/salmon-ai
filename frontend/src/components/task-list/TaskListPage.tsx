@@ -5,6 +5,8 @@ import { Task } from "./types";
 import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
 
+type Category = { id: number; name: string; color: string };
+
 const API_BASE = "http://localhost:8080";
 
 // ────────────────────────────────────────────
@@ -270,20 +272,53 @@ function DueDateInput({
 }
 
 // ────────────────────────────────────────────
+// カテゴリ選択
+// ────────────────────────────────────────────
+function CategorySelect({
+  categories,
+  value,
+  onChange,
+}: {
+  categories: Category[];
+  value: number | null;
+  onChange: (id: number | null) => void;
+}) {
+  const inputCls = "w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition";
+  return (
+    <div>
+      <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">カテゴリ（任意）</label>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value ? parseInt(e.target.value) : null)}
+        className={`${inputCls} bg-white`}
+      >
+        <option value="">なし</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
 // タスク追加モーダル
 // ────────────────────────────────────────────
 function AddTaskModal({
   onClose,
   onAdd,
+  categories,
 }: {
   onClose: () => void;
-  onAdd: (task: Task) => void;
+  onAdd: (task: Task, categoryId: number | null) => void;
+  categories: Category[];
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("2");
   const [durationMins, setDurationMins] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
 
   function handleAdd() {
     if (!title.trim()) return;
@@ -298,7 +333,7 @@ function AddTaskModal({
       due_date: dueDate ? toLocalDateStr(dueDate) : null,
       category: null,
     };
-    onAdd(newTask);
+    onAdd(newTask, categoryId);
     onClose();
   }
 
@@ -347,6 +382,7 @@ function AddTaskModal({
           </div>
           <DurationInput initialMins={null} onChange={setDurationMins} />
           <DueDateInput initialDate={null} onChange={setDueDate} />
+          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
         </div>
         <div className="flex gap-2.5 mt-6">
           <button onClick={onClose}
@@ -370,16 +406,18 @@ function AddTaskModal({
 // タスク編集モーダル
 // ────────────────────────────────────────────
 function EditTaskModal({
-  task, onClose, onUpdate, onDelete,
+  task, onClose, onUpdate, onDelete, categories,
 }: {
   task: Task;
   onClose: () => void;
-  onUpdate: (updated: Task) => void;
+  onUpdate: (updated: Task, categoryId: number | null) => void;
   onDelete: (id: number) => void;
+  categories: Category[];
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [priority, setPriority] = useState(String(task.priority ?? 2));
+  const [categoryId, setCategoryId] = useState<number | null>(task.category?.id ?? null);
 
   const initMins = task.estimated_hours != null ? Math.round(task.estimated_hours * 60) : null;
   const [durationMins, setDurationMins] = useState<number | null>(initMins);
@@ -389,7 +427,7 @@ function EditTaskModal({
 
   function handleSave() {
     if (!title.trim()) return;
-    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority), estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null });
+    onUpdate({ ...task, title: title.trim(), description: description.trim() || null, priority: parseInt(priority), estimated_hours: durationMins != null ? durationMins / 60 : null, due_date: dueDate ? toLocalDateStr(dueDate) : null }, categoryId);
     onClose();
   }
 
@@ -426,6 +464,7 @@ function EditTaskModal({
           </div>
           <DurationInput initialMins={initMins} onChange={setDurationMins} />
           <DueDateInput initialDate={initDue} onChange={setDueDate} />
+          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
         </div>
         <div className="flex gap-2.5 mt-6">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold hover:bg-slate-200 transition-colors">キャンセル</button>
@@ -441,23 +480,30 @@ function EditTaskModal({
 // ────────────────────────────────────────────
 export default function TaskListPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/tasks`)
-      .then((r) => r.json())
-      .then((data) => setTasks(data))
-      .catch((e) => console.error("タスク取得エラー:", e));
+    Promise.all([
+      fetch(`${API_BASE}/tasks`).then((r) => r.json()),
+      fetch(`${API_BASE}/categories`).then((r) => r.json()),
+    ])
+      .then(([tasks, categories]) => {
+        setTasks(tasks);
+        setCategories(categories);
+      })
+      .catch((e) => console.error("データ取得エラー:", e));
   }, []);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  async function handleUpdateTask(updated: Task) {
+  async function handleUpdateTask(updated: Task, categoryId: number | null) {
     try {
       const res = await fetch(`${API_BASE}/tasks/${updated.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: updated.title, description: updated.description, priority: updated.priority, estimated_hours: updated.estimated_hours, due_date: updated.due_date }),
+        body: JSON.stringify({ title: updated.title, description: updated.description, priority: updated.priority, estimated_hours: updated.estimated_hours, due_date: updated.due_date, category_id: categoryId }),
       });
+      if (!res.ok) { console.error("タスク更新エラー:", res.status, await res.text()); return; }
       const saved: Task = await res.json();
       setTasks((prev: Task[]) => prev.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) { console.error("タスク更新エラー:", e); }
@@ -465,13 +511,27 @@ export default function TaskListPage() {
 
   async function handleDeleteTask(id: number) {
     try {
-      await fetch(`${API_BASE}/tasks/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/tasks/${id}`, { method: "DELETE" });
+      if (!res.ok) { console.error("タスク削除エラー:", res.status, await res.text()); return; }
       setTasks((prev: Task[]) => prev.filter((t) => t.id !== id));
       setEditingTask(null);
     } catch (e) { console.error("タスク削除エラー:", e); }
   }
 
-  async function handleAddTask(task: Task) {
+  async function handleToggleComplete(task: Task) {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_completed: !task.is_completed }),
+      });
+      if (!res.ok) { console.error("タスク更新エラー:", res.status, await res.text()); return; }
+      const saved: Task = await res.json();
+      setTasks((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
+    } catch (e) { console.error("タスク更新エラー:", e); }
+  }
+
+  async function handleAddTask(task: Task, categoryId: number | null) {
     try {
       const res = await fetch(`${API_BASE}/tasks`, {
         method: "POST",
@@ -482,8 +542,10 @@ export default function TaskListPage() {
           priority: task.priority,
           estimated_hours: task.estimated_hours,
           due_date: task.due_date,
+          category_id: categoryId,
         }),
       });
+      if (!res.ok) { console.error("タスク追加エラー:", res.status, await res.text()); return; }
       const created: Task = await res.json();
       setTasks((prev: Task[]) => [created, ...prev]);
     } catch (e) {
@@ -602,7 +664,7 @@ export default function TaskListPage() {
         ) : (
           <div className="flex flex-col gap-2.5">
             {sorted.map((task) => (
-              <TaskListItem key={task.id} task={task} onEdit={() => setEditingTask(task)} />
+              <TaskListItem key={task.id} task={task} onEdit={() => setEditingTask(task)} onToggleComplete={() => handleToggleComplete(task)} />
             ))}
           </div>
         )}
@@ -619,7 +681,7 @@ export default function TaskListPage() {
 
       {/* ── タスク追加モーダル ── */}
       {showAdd && (
-        <AddTaskModal onClose={() => setShowAdd(false)} onAdd={handleAddTask} />
+        <AddTaskModal onClose={() => setShowAdd(false)} onAdd={handleAddTask} categories={categories} />
       )}
 
       {/* ── タスク編集モーダル ── */}
@@ -629,6 +691,7 @@ export default function TaskListPage() {
           onClose={() => setEditingTask(null)}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}
+          categories={categories}
         />
       )}
     </div>

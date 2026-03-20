@@ -22,10 +22,16 @@ func NewClient() *Client {
 		baseURL = "http://ai:8000"
 	}
 
+	// ResponseHeaderTimeout: ヘッダー受信までのタイムアウト（ボディ読み取りは対象外）
+	// → 通常リクエストは30秒以内にヘッダーが来ることを保証しつつ、
+	//   ストリーミングのボディ読み取りは無制限で継続できる
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 30 * time.Second
+
 	return &Client{
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Transport: transport,
 		},
 	}
 }

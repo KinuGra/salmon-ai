@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { MobileTab, LeftTab } from "./types";
-import { MOCK_REPORT, MOCK_REFLECTIONS, MOCK_HISTORY_MESSAGES } from "./mock-data";
+import { useState, useEffect } from "react";
+import { MobileTab, LeftTab, Report, Reflection } from "./types";
 import ReportView from "./ReportView";
 import ChatView from "./ChatView";
 import HistoryView from "./HistoryView";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 // ────────────────────────────────────────────
 // 今日の日付表示
@@ -22,8 +23,8 @@ function todayLabel(): string {
 // モバイルタブバー
 // ────────────────────────────────────────────
 const MOBILE_TABS: { key: MobileTab; label: string }[] = [
-  { key: "report", label: "レポート" },
-  { key: "chat",   label: "振り返り" },
+  { key: "report",  label: "レポート" },
+  { key: "chat",    label: "振り返り" },
   { key: "history", label: "履歴" },
 ];
 
@@ -92,7 +93,58 @@ function LeftTabBar({
 // ────────────────────────────────────────────
 export default function ReflectionPage() {
   const [mobileTab, setMobileTab] = useState<MobileTab>("report");
-  const [leftTab, setLeftTab] = useState<LeftTab>("report");
+  const [leftTab, setLeftTab]     = useState<LeftTab>("report");
+
+  const [report, setReport]                   = useState<Report | null>(null);
+  const [todayReflection, setTodayReflection] = useState<Reflection | null>(null);
+  const [reflections, setReflections]         = useState<Reflection[]>([]);
+
+  useEffect(() => {
+    fetchReport();
+    fetchTodayReflection();
+    fetchReflections();
+  }, []);
+
+  async function fetchReport() {
+    try {
+      const res = await fetch(`${API_BASE}/reports/latest`);
+      if (res.ok) setReport(await res.json());
+    } catch (err) {
+      console.error("Failed to fetch report:", err);
+    }
+  }
+
+  async function fetchTodayReflection() {
+    try {
+      const res = await fetch(`${API_BASE}/reflections/today`);
+      if (res.ok) setTodayReflection(await res.json());
+    } catch (err) {
+      console.error("Failed to fetch today's reflection:", err);
+    }
+  }
+
+  async function fetchReflections() {
+    try {
+      const res = await fetch(`${API_BASE}/reflections`);
+      if (res.ok) setReflections(await res.json());
+    } catch (err) {
+      console.error("Failed to fetch reflections:", err);
+      setReflections([]);
+    }
+  }
+
+  const reportPanel = (
+    <ReportView
+      report={report}
+      onReportGenerated={(r) => setReport(r)}
+    />
+  );
+
+  const historyPanel = <HistoryView reflections={reflections} />;
+
+  const chatPanel = (
+    <ChatView reflectionId={todayReflection?.id ?? null} />
+  );
 
   return (
     <div className="flex flex-col h-svh bg-white overflow-hidden">
@@ -112,58 +164,33 @@ export default function ReflectionPage() {
             {todayLabel()}
           </span>
         </div>
-
-        {/* モバイルタブバー */}
         <MobileTabBar active={mobileTab} onChange={setMobileTab} />
       </header>
 
       {/* ── コンテンツエリア ── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ── デスクトップ左パネル（lg以上で表示） ── */}
+        {/* デスクトップ左パネル */}
         <div className="hidden lg:flex flex-col w-[52%] border-r border-slate-100 overflow-hidden">
           <LeftTabBar active={leftTab} onChange={setLeftTab} />
           <div className="flex-1 overflow-hidden flex flex-col">
-            {leftTab === "report" ? (
-              <ReportView report={MOCK_REPORT} />
-            ) : (
-              <HistoryView
-                reflections={MOCK_REFLECTIONS}
-                messages={MOCK_HISTORY_MESSAGES}
-              />
-            )}
+            {leftTab === "report" ? reportPanel : historyPanel}
           </div>
         </div>
 
-        {/* ── チャットパネル ── */}
-        {/* モバイル: chat タブのときだけ表示 / デスクトップ: 常に右カラムで表示 */}
-        <div
-          className={`flex-1 flex-col overflow-hidden ${
-            mobileTab === "chat" ? "flex" : "hidden lg:flex"
-          }`}
-        >
-          <ChatView />
+        {/* チャットパネル */}
+        <div className={`flex-1 flex-col overflow-hidden ${mobileTab === "chat" ? "flex" : "hidden lg:flex"}`}>
+          {chatPanel}
         </div>
 
-        {/* ── モバイル: レポートタブ ── */}
-        <div
-          className={`flex-1 overflow-hidden flex-col ${
-            mobileTab === "report" ? "flex lg:hidden" : "hidden"
-          }`}
-        >
-          <ReportView report={MOCK_REPORT} />
+        {/* モバイル: レポートタブ */}
+        <div className={`flex-1 overflow-hidden flex-col ${mobileTab === "report" ? "flex lg:hidden" : "hidden"}`}>
+          {reportPanel}
         </div>
 
-        {/* ── モバイル: 履歴タブ ── */}
-        <div
-          className={`flex-1 overflow-hidden flex-col ${
-            mobileTab === "history" ? "flex lg:hidden" : "hidden"
-          }`}
-        >
-          <HistoryView
-            reflections={MOCK_REFLECTIONS}
-            messages={MOCK_HISTORY_MESSAGES}
-          />
+        {/* モバイル: 履歴タブ */}
+        <div className={`flex-1 overflow-hidden flex-col ${mobileTab === "history" ? "flex lg:hidden" : "hidden"}`}>
+          {historyPanel}
         </div>
       </div>
     </div>
