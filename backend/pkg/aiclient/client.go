@@ -17,7 +17,7 @@ type Client struct {
 func NewClient() *Client {
 	baseURL := os.Getenv("AI_SERVICE_URL")
 	if baseURL == "" {
-		baseURL = "http://localhost:8000"
+		baseURL = "http://ai:8000"
 	}
 
 	return &Client{
