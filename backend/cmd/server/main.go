@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/salmon-ai/salmon-ai/internal/middleware"
 	"github.com/salmon-ai/salmon-ai/internal/handler"
 	"github.com/salmon-ai/salmon-ai/internal/model"
 	"github.com/salmon-ai/salmon-ai/internal/repository"
@@ -69,6 +70,7 @@ func main() {
 	userHandler := handler.NewUserHandler(userSvc)
 
 	r := gin.Default()
+	r.Use(middleware.CORS())
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
