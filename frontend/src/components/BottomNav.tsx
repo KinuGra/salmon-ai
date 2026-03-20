@@ -50,7 +50,7 @@ export default function BottomNav() {
   const router = useRouter();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+    <nav className="fixed bottom-0 left-0 right-0 z-[70] flex justify-center pointer-events-none">
       <div className="w-full max-w-lg pointer-events-auto">
         {/* safe area 対応 */}
         <div className="bg-white/90 backdrop-blur-md border-t border-slate-200 px-2 pb-safe">
