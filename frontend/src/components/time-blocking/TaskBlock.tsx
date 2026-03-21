@@ -75,10 +75,12 @@ function AchievementSegment({
 function AiAlertPopover({
   task,
   aiDiff,
+  hasAiAlert,
   isHighAlert,
 }: {
   task: Task;
   aiDiff: number; // 符号付き: ai - estimated
+  hasAiAlert: boolean;
   isHighAlert: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -115,11 +117,13 @@ function AiAlertPopover({
         className={`text-[10px] font-extrabold px-1 py-0.5 rounded leading-none transition-all hover:scale-105 active:scale-95 ${
           isHighAlert
             ? "text-red-600 bg-red-50 hover:bg-red-100"
-            : "text-amber-600 bg-amber-50 hover:bg-amber-100"
+            : hasAiAlert
+              ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
+              : "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
         }`}
-        aria-label="AI見積もりとの乖離を確認"
+        aria-label="AI見積もりを確認"
       >
-        ！
+        AI
       </button>
 
       {/* ポップオーバー本体: left-0 top-6 で右下に展開、画面端対策に max-w */}
@@ -167,7 +171,9 @@ function AiAlertPopover({
           <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
             {isHighAlert
               ? "大幅な乖離があります。見積もりの見直しを推奨します。"
-              : "やや差があります。余裕を持った計画を検討してください。"}
+              : hasAiAlert
+                ? "やや差があります。余裕を持った計画を検討してください。"
+                : "AIの見積もりとほぼ一致しています。"}
           </p>
 
           {/* 再見積もりボタン */}
@@ -347,10 +353,11 @@ export default function TaskBlock({ task, onAchievementChange, onEdit, onTouchDr
               {task.estimated_hours}h
             </span>
           )}
-          {hasAiAlert && aiDiff !== null && (
+          {aiDiff !== null && (
             <AiAlertPopover
               task={task}
               aiDiff={aiDiff}
+              hasAiAlert={hasAiAlert}
               isHighAlert={isHighAlert}
             />
           )}

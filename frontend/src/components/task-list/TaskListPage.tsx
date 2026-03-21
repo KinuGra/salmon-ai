@@ -207,6 +207,16 @@ export default function TaskListPage() {
       if (!res.ok) { console.error("タスク追加エラー:", res.status, await res.text()); return; }
       const created: Task = await res.json();
       setTasks((prev: Task[]) => [created, ...prev]);
+
+      // AI見積もりは非同期で実行されるため、完了後にタスクをリフェッチして反映
+      setTimeout(async () => {
+        try {
+          const updated = await fetch(`${API_BASE}/tasks`).then((r) => r.json());
+          setTasks(updated);
+        } catch (e) {
+          console.error("AI見積もりリフェッチエラー:", e);
+        }
+      }, 5000);
     } catch (e) {
       console.error("タスク追加エラー:", e);
     }

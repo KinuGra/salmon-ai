@@ -69,6 +69,15 @@ func (r *TaskRepository) Update(id uint, userID uint, fields map[string]interfac
 	return &task, nil
 }
 
+func (r *TaskRepository) UpdateAIEstimation(id uint, estimatedHours float64, reason string) error {
+	return r.db.Model(&model.Task{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"ai_estimated_hours":   estimatedHours,
+			"ai_estimation_reason": reason,
+		}).Error
+}
+
 func (r *TaskRepository) Delete(id uint, userID uint) error {
 	return r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.Task{}).Error
 }
