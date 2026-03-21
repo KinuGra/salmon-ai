@@ -40,55 +40,67 @@ func (s *TaskService) GetUnscheduledTasks(userID uint) ([]model.Task, error) {
 }
 
 func (s *TaskService) CreateTask(task *model.Task) error {
-	// AI見積もり用のリクエストを準備
+	if err := s.repo.Create(task); err != nil {
+		return err
+	}
+
+	// AI見積もりをgoroutineで非同期実行（タスク作成をブロックしない）
+	go s.runAIEstimation(task.ID, task.Title, task.Description, task.CategoryID, task.UserID)
+
+	return nil
+}
+
+func (s *TaskService) runAIEstimation(taskID uint, title string, description *string, categoryID *uint, userID uint) {
 	reqPayload := struct {
 		Title       string  `json:"title"`
 		Description *string `json:"description,omitempty"`
 		Category    *string `json:"category,omitempty"`
 		UserContext *string `json:"user_context,omitempty"`
 	}{
-		Title:       task.Title,
-		Description: task.Description,
+		Title:       title,
+		Description: description,
 	}
 
 	// UserContext の取得
-	if user, err := s.userRepo.FindByID(task.UserID); err == nil && user != nil {
+	if user, err := s.userRepo.FindByID(userID); err == nil && user != nil {
 		reqPayload.UserContext = user.UserContext
 	} else if err != nil {
-		log.Printf("ユーザー情報の取得に失敗しました (userID: %d): %v", task.UserID, err)
+		log.Printf("ユーザー情報の取得に失敗しました (userID: %d): %v", userID, err)
 	}
 
 	// カテゴリ名の取得
-	if task.CategoryID != nil {
-		if cat, err := s.categoryRepo.FindByIDAndUserID(*task.CategoryID, task.UserID); err == nil {
+	if categoryID != nil {
+		if cat, err := s.categoryRepo.FindByIDAndUserID(*categoryID, userID); err == nil {
 			reqPayload.Category = &cat.Name
 		} else {
-			log.Printf("カテゴリ情報の個別取得に失敗しました (userID: %d, categoryID: %d): %v", task.UserID, *task.CategoryID, err)
+			log.Printf("カテゴリ情報の個別取得に失敗しました (userID: %d, categoryID: %d): %v", userID, *categoryID, err)
 		}
 	}
 
-	// aiclientを使ってAIに見積もりをリクエストし、結果をタスクにセット
-	
-	if data, err := s.aiClient.Post("/estimate", reqPayload); err == nil {
-		var aiResp struct {
-			EstimatedHours float64 `json:"estimated_hours"`
-			Reasoning      string  `json:"reasoning"`
-		}
-		if err := json.Unmarshal(data, &aiResp); err == nil {
-			task.AiEstimatedHours = &aiResp.EstimatedHours
-			task.AiEstimationReason = &aiResp.Reasoning
-			fmt.Printf("[AI Estimate Result] Title: %s -> %.1fh (Reason: %s)\n", task.Title, aiResp.EstimatedHours, aiResp.Reasoning)
-		} else {
-			log.Printf("AI見積もりレスポンスのパースに失敗しました: %v", err)
-		}
-	} else {
-		log.Printf("AI見積もりの取得に失敗しました: %v", err)
+	data, err := s.aiClient.Post("/estimate", reqPayload)
+	if err != nil {
+		log.Printf("[AI Estimate] 見積もりの取得に失敗しました (taskID: %d): %v", taskID, err)
+		return
 	}
 
-	return s.repo.Create(task)
+	var aiResp struct {
+		EstimatedHours float64 `json:"estimated_hours"`
+		Reasoning      string  `json:"reasoning"`
+	}
+	if err := json.Unmarshal(data, &aiResp); err != nil {
+		log.Printf("[AI Estimate] レスポンスのパースに失敗しました (taskID: %d): %v", taskID, err)
+		return
+	}
+
+	if err := s.repo.UpdateAIEstimation(taskID, aiResp.EstimatedHours, aiResp.Reasoning); err != nil {
+		log.Printf("[AI Estimate] DB更新に失敗しました (taskID: %d): %v", taskID, err)
+		return
+	}
+
+	fmt.Printf("[AI Estimate] taskID=%d title=%q -> %.1fh\n", taskID, title, aiResp.EstimatedHours)
 }
 
-func (s *TaskService) UpdateTask(id uint, userID uint, fields map[string]interface{}) (*model.Task, error) {
+func (s *TaskService) UpdateTask(id uint, userID uint, fields map[string]any) (*model.Task, error) {
 	// achievement_rate == 100 → is_completed = true
 	if v, ok := fields["achievement_rate"].(int); ok && v == 100 {
 		fields["is_completed"] = true
