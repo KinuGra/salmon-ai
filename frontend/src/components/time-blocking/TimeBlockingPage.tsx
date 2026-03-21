@@ -5,7 +5,7 @@ import { Task, ScheduleResponse } from "./types";
 import EditTaskModal, { Category } from "../task-list/EditTaskModal";
 import { DragProvider, useDragContext } from "./DragContext";
 
-const API_BASE = "http://localhost:8080";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 import {
   PX_PER_MIN,
   TIMELINE_START_HOUR,
