@@ -202,7 +202,7 @@ function AiAlertPopover({
 // ────────────────────────────────────────────
 export default function TaskBlock({ task, onAchievementChange, onEdit, onTouchDrop }: Props) {
   const [mouseDragging, setMouseDragging] = useState(false);
-  const blockRef = useRef<HTMLElement>(null);
+  const blockRef = useRef<HTMLDivElement>(null);
   const { dragInfoRef, lastDropXRef } = useDragContext();
 
   const { isDragging: touchDragging, ghostPortal } = useTouchDrag({

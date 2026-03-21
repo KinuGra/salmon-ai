@@ -458,7 +458,7 @@ function TimeBlockingContent() {
 
       if (dragType === "scheduled") {
         const adjustedTop = rawTop - dragInfo.grabOffset;
-        start = topToIso(adjustedTop, selectedDate);
+        start = topToIso(adjustedTop, selectedDate!);
         const existing = tasks.find((t) => t.id === taskId);
         if (existing?.start_time && existing?.end_time) {
           const durationMs = new Date(existing.end_time).getTime() - new Date(existing.start_time).getTime();
@@ -467,7 +467,7 @@ function TimeBlockingContent() {
           end = calculateDefaultEndTime(start);
         }
       } else {
-        start = topToIso(rawTop, selectedDate);
+        start = topToIso(rawTop, selectedDate!);
         const droppedTask = tasks.find((t) => t.id === taskId);
         if (droppedTask?.estimated_hours) {
           const endDate = new Date(start);
@@ -544,7 +544,7 @@ function TimeBlockingContent() {
         // タイムライン上のブロックを移動: grabOffset を考慮してブロック上端を計算
         const grabOffset = Number(e.dataTransfer.getData("grabOffset") || "0");
         const adjustedTop = rawTop - grabOffset;
-        start = topToIso(adjustedTop, selectedDate);
+        start = topToIso(adjustedTop, selectedDate!);
 
         // 元のタスクの長さ（ミリ秒）を保持
         const existing = tasks.find((t) => t.id === taskId);
@@ -562,7 +562,7 @@ function TimeBlockingContent() {
         }
       } else {
         // インボックスからのドロップ: estimated_hours を使って end_time を計算、なければ30分
-        start = topToIso(rawTop, selectedDate);
+        start = topToIso(rawTop, selectedDate!);
         const droppedTask = tasks.find((t: Task) => t.id === taskId);
         if (droppedTask?.estimated_hours) {
           const endDate = new Date(start);
