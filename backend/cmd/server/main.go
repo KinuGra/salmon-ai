@@ -189,7 +189,11 @@ func main() {
 	// Schedule（スケジュールサポート）
 	r.POST("/ai/schedule/support", scheduleHandler.ScheduleSupport)
 
-	if err := r.Run(":8080"); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
