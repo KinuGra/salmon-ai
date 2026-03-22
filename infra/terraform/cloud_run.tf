@@ -14,7 +14,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "AI_SERVICE_URL"
-        value = "https://${google_cloud_run_v2_service.ai.uri}"
+        value = google_cloud_run_v2_service.ai.uri
       }
 
       ports {
