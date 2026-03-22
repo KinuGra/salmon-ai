@@ -72,14 +72,14 @@ func main() {
 	//   middleware.MockAuth(30) → 佐藤 健太（慎重すぎ・コンフォートゾーン型）
 	//
 	// ファイルが存在しない場合はスキップ（本番環境への影響なし）
-	if seedSQL, err := os.ReadFile("db/seed.sql"); err == nil {
+	if seedSQL, err := os.ReadFile("pkg/database/seed.sql"); err == nil {
 		if _, err := sqlDB.Exec(string(seedSQL)); err != nil {
 			log.Printf("warning: failed to execute seed.sql: %v", err)
 		} else {
 			log.Println("seed.sql executed successfully")
 		}
 	} else {
-		log.Println("db/seed.sql not found, skipping seed")
+		log.Println("pkg/database/seed.sql not found, skipping seed")
 	}
 
 	// デフォルトカテゴリの作成
@@ -135,18 +135,6 @@ func main() {
 	r := gin.Default()
 	r.Use(middleware.CORS())
 	r.Use(middleware.MockAuth(mockUser.ID))
-
-	// 暫定CORSミドルウェア（pan担当の本番ミドルウェアに後で置き換える）
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
 
 	r.GET("/health", func(c *gin.Context) {
 		userID, _ := c.Get("userID")
