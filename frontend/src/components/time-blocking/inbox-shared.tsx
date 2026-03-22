@@ -15,7 +15,7 @@ export const PRIORITY_COLOR: Record<number, string> = {
 
 export function sortInbox(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (a.priority !== b.priority) return (a.priority ?? 99) - (b.priority ?? 99);
     if (!a.due_date && !b.due_date) return 0;
     if (!a.due_date) return 1;
     if (!b.due_date) return -1;
@@ -81,7 +81,7 @@ export function InboxChip({
       >
         <span
           className="w-1.5 h-1.5 rounded-full shrink-0"
-          style={{ background: PRIORITY_COLOR[task.priority] }}
+          style={{ background: task.priority ? PRIORITY_COLOR[task.priority] : "#94a3b8" }}
         />
         <span className="text-[12px] font-semibold text-slate-700 flex-1 truncate leading-none">
           {task.title}
@@ -111,9 +111,9 @@ export function InboxChip({
           )}
           <span
             className="text-[9px] font-bold"
-            style={{ color: PRIORITY_COLOR[task.priority] }}
+            style={{ color: task.priority ? PRIORITY_COLOR[task.priority] : "#94a3b8" }}
           >
-            {PRIORITY_LABEL[task.priority]}
+            {task.priority ? PRIORITY_LABEL[task.priority] : "-"}
           </span>
         </div>
       </div>

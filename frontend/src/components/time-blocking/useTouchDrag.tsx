@@ -8,7 +8,7 @@ import { DragInfo } from "./DragContext";
 export const DRAG_THRESHOLD_PX = 8;
 
 type Options = {
-  elementRef: RefObject<HTMLElement>;
+  elementRef: RefObject<HTMLElement | null>;
   /** ドラッグ開始時に呼ばれる（Context へのメタ情報登録に使う） */
   onDragStart?: (meta: DragInfo) => void;
   /** 指を離した時に呼ばれる */
@@ -57,7 +57,7 @@ export function useTouchDrag({
 
     function onDown(e: PointerEvent) {
       if (e.pointerType === "mouse") return;
-      const rect = el.getBoundingClientRect();
+      const rect = el!.getBoundingClientRect();
       active = false;
       pid = e.pointerId;
       grabOffsetX = Math.round(e.clientX - rect.left);
@@ -72,12 +72,12 @@ export function useTouchDrag({
       if (!active) {
         if (Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_THRESHOLD_PX) return;
         active = true;
-        el.setPointerCapture(pid);
-        const rect = el.getBoundingClientRect();
+        el!.setPointerCapture(pid);
+        const rect = el!.getBoundingClientRect();
         const meta = getDragMetaRef.current();
         const gx = freeXRef.current ? e.clientX - grabOffsetX : anchorX;
         const gy = e.clientY - grabOffsetY;
-        ghostCloneRef.current = el.cloneNode(true) as HTMLElement;
+        ghostCloneRef.current = el!.cloneNode(true) as HTMLElement;
         setIsDragging(true);
         setGhostInit({ width: rect.width, height: rect.height, x: gx, y: gy });
         onDragStartRef.current?.({ ...meta, grabOffset: grabOffsetY });

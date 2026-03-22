@@ -7,7 +7,7 @@ import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
 import EditTaskModal, { Category, DurationInput, DueDateInput, CategorySelect, toLocalDateStr } from "./EditTaskModal";
 
-const API_BASE = "http://localhost:8080";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 // ────────────────────────────────────────────
 // タスク追加モーダル
