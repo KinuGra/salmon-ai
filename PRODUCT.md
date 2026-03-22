@@ -137,10 +137,10 @@ AIが現在のタイムブロッキングを診断し、改善点を指摘しま
 
 | レイヤー | 技術 |
 |---|---|
-| フロントエンド | Next.js 15 (App Router) / TypeScript / shadcn/ui / TanStack Query |
+| フロントエンド | Next.js 15 (App Router) / TypeScript / shadcn/ui / TanStack Query / react-hook-form + zod |
 | バックエンド | Go / Gin / GORM / PostgreSQL |
-| AI サービス | Python / FastAPI / Google Gemini API |
-| AI通信方式 | REST（通常リクエスト）/ SSE（振り返りストリーミング） |
+| AI サービス | Python / FastAPI / Google Gemini API (google-genai) |
+| AI通信方式 | REST（工数見積もり・レポート・スケジューリング） / SSE（振り返り対話ストリーミング） |
 | インフラ | Docker / Docker Compose |
 
 ---
@@ -151,8 +151,6 @@ AIが現在のタイムブロッキングを診断し、改善点を指摘しま
 git clone https://github.com/KinuGra/salmon-ai.git
 cd salmon-ai
 ```
-
-各サービスに環境変数ファイルを作成します。
 
 **`backend/.env`**
 ```env
@@ -176,6 +174,6 @@ cd infra
 docker compose up --build
 ```
 
-起動後 http://localhost:3000 からアクセスできます。
+起動後 http://localhost:3000 からアクセスできます。起動時にモックデータ（`db/seed.sql`）が自動投入されます。
 
 > Gemini API キーは [Google AI Studio](https://aistudio.google.com/) で取得できます（無料枠あり）。
