@@ -175,12 +175,15 @@ function AIModal({
         if (!r.ok) throw new Error(`status ${r.status}`);
         return r.json();
       })
-      .then((data: ScheduleResponse) => setResult(data))
-      .catch((e) => {
-        if (e.name === "AbortError") return;
-        setError("診断に失敗しました。");
+      .then((data: ScheduleResponse) => {
+        setResult(data);
+        setIsLoading(false);
       })
-      .finally(() => setIsLoading(false));
+      .catch((e) => {
+        if (e.name === "AbortError") return; // abort時はisLoadingを変えない（StrictMode二重実行対策）
+        setError("診断に失敗しました。");
+        setIsLoading(false);
+      });
     return () => controller.abort();
   }, [selectedDate]);
 
