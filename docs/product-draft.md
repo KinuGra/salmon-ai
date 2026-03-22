@@ -6,12 +6,12 @@
 
 この体験には、いくつかの共通した原因があります。
 
-| 課題 | よくある状況 |
-|---|---|
-| **見積もりが甘い** | 「1時間で終わる」と思ったタスクが3時間かかった |
-| **スケジュールが非現実的** | タスクを詰め込みすぎて、バッファがゼロ |
-| **振り返りをしていない** | 失敗パターンに気づかず、毎日同じミスを繰り返す |
-| **自分の傾向を知らない** | いつも優先度の低いタスクだけこなして満足している |
+| 課題                       | よくある状況                                     |
+| -------------------------- | ------------------------------------------------ |
+| **見積もりが甘い**         | 「1時間で終わる」と思ったタスクが3時間かかった   |
+| **スケジュールが非現実的** | タスクを詰め込みすぎて、バッファがゼロ           |
+| **振り返りをしていない**   | 失敗パターンに気づかず、毎日同じミスを繰り返す   |
+| **自分の傾向を知らない**   | いつも優先度の低いタスクだけこなして満足している |
 
 salmon-ai はこれらを **タイムブロッキング × AI** で解決します。タスクを登録するだけでAIが工数を見積もり、1日の計画の無理を指摘し、夜には振り返りをAIと対話し、蓄積されたデータから自分の行動パターンをレポートします。
 
@@ -130,50 +130,3 @@ AIが現在のタイムブロッキングを診断し、改善点を指摘しま
 │   └── 過去の振り返り履歴
 └── /stats              進捗・サマリー・草グラフ
 ```
-
----
-
-## 技術スタック
-
-| レイヤー | 技術 |
-|---|---|
-| フロントエンド | Next.js 15 (App Router) / TypeScript / shadcn/ui / TanStack Query / react-hook-form + zod |
-| バックエンド | Go / Gin / GORM / PostgreSQL |
-| AI サービス | Python / FastAPI / Google Gemini API (google-genai) |
-| AI通信方式 | REST（工数見積もり・レポート・スケジューリング） / SSE（振り返り対話ストリーミング） |
-| インフラ | Docker / Docker Compose |
-
----
-
-## セットアップ
-
-```bash
-git clone https://github.com/KinuGra/salmon-ai.git
-cd salmon-ai
-```
-
-**`backend/.env`**
-```env
-DATABASE_URL=host=postgres user=user password=password dbname=appdb port=5432 sslmode=disable
-PORT=8080
-AI_SERVICE_URL=http://ai:8000
-```
-
-**`ai/.env`**
-```env
-GEMINI_API_KEY=your_gemini_api_key
-```
-
-**`frontend/.env.local`**
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8080
-```
-
-```bash
-cd infra
-docker compose up --build
-```
-
-起動後 http://localhost:3000 からアクセスできます。起動時にモックデータ（`db/seed.sql`）が自動投入されます。
-
-> Gemini API キーは [Google AI Studio](https://aistudio.google.com/) で取得できます（無料枠あり）。
