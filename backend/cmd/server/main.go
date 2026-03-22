@@ -72,14 +72,14 @@ func main() {
 	//   middleware.MockAuth(30) → 佐藤 健太（慎重すぎ・コンフォートゾーン型）
 	//
 	// ファイルが存在しない場合はスキップ（本番環境への影響なし）
-	if seedSQL, err := os.ReadFile("db/seed.sql"); err == nil {
+	if seedSQL, err := os.ReadFile("pkg/database/seed.sql"); err == nil {
 		if _, err := sqlDB.Exec(string(seedSQL)); err != nil {
 			log.Printf("warning: failed to execute seed.sql: %v", err)
 		} else {
 			log.Println("seed.sql executed successfully")
 		}
 	} else {
-		log.Println("db/seed.sql not found, skipping seed")
+		log.Println("pkg/database/seed.sql not found, skipping seed")
 	}
 
 	// デフォルトカテゴリの作成
