@@ -136,18 +136,6 @@ func main() {
 	r.Use(middleware.CORS())
 	r.Use(middleware.MockAuth(mockUser.ID))
 
-	// 暫定CORSミドルウェア（pan担当の本番ミドルウェアに後で置き換える）
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
-
 	r.GET("/health", func(c *gin.Context) {
 		userID, _ := c.Get("userID")
 		c.JSON(200, gin.H{"status": "ok", "userID": userID})
