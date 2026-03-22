@@ -26,7 +26,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
-            max_output_tokens=2048,
+            max_output_tokens=8192,  # 日本語長文レポート用（日本語は1文字複数トークン消費するため余裕を持たせる）
         ),
     )
 
