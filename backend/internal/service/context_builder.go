@@ -30,6 +30,8 @@ func NewContextBuilder(
 
 // BuildFullContext はユーザーの全データ（タスク・振り返り・カテゴリ）を収集し、
 // AIが解釈しやすい構造化テキストとして返します。
+// 施策1: 達成率100%のスケジュール済みタスクをExemplar Injection（参照データ注入）として末尾に付与します。
+// 施策3: データ品質サマリーを先頭に付与し、欠損データをLLMが認識できるようにします。
 func (cb *ContextBuilder) BuildFullContext(userID uint) (string, error) {
 	tasks, err := cb.taskRepo.FindByUserID(userID)
 	if err != nil {
@@ -48,6 +50,9 @@ func (cb *ContextBuilder) BuildFullContext(userID uint) (string, error) {
 
 	var sb strings.Builder
 
+	// ── 施策3: データ品質サマリー ──────────────────────────────
+	sb.WriteString(buildDataQualitySummary(tasks, reflections))
+
 	// ── カテゴリ ──────────────────────────────────────────────
 	sb.WriteString("## カテゴリ一覧\n\n")
 	if len(categories) == 0 {
@@ -64,7 +69,6 @@ func (cb *ContextBuilder) BuildFullContext(userID uint) (string, error) {
 	if len(tasks) == 0 {
 		sb.WriteString("（タスクなし）\n")
 	} else {
-		// 完了・未完了を分けて集計サマリーを先頭に付与
 		completed := 0
 		for _, t := range tasks {
 			if t.IsCompleted {
@@ -90,7 +94,87 @@ func (cb *ContextBuilder) BuildFullContext(userID uint) (string, error) {
 		}
 	}
 
+	// ── 施策1: Exemplar Injection（参照データ注入）────────────
+	sb.WriteString(buildFewShotSection(tasks))
+
 	return sb.String(), nil
+}
+
+// buildDataQualitySummary はデータ欠損の状況をサマリーテキストとして返します。
+// LLMが欠損を認識した上で分析できるようにします（施策3）。
+func buildDataQualitySummary(tasks []model.Task, reflections []model.Reflection) string {
+	var sb strings.Builder
+	sb.WriteString("## データ品質サマリー\n\n")
+
+	// 振り返りの記録率
+	reflectionWithContent := 0
+	for _, r := range reflections {
+		if r.Content != nil && *r.Content != "" {
+			reflectionWithContent++
+		}
+	}
+	reflectionMissing := len(reflections) - reflectionWithContent
+	sb.WriteString(fmt.Sprintf("- 振り返り記録あり: %d日 / 記録なし: %d日\n", reflectionWithContent, reflectionMissing))
+
+	// タスクの達成率入力率・タイムブロッキング率
+	achievementFilled := 0
+	timeBlocked := 0
+	for _, t := range tasks {
+		if t.AchievementRate != nil {
+			achievementFilled++
+		}
+		if t.StartTime != nil {
+			timeBlocked++
+		}
+	}
+	achievementMissing := len(tasks) - achievementFilled
+	sb.WriteString(fmt.Sprintf("- 達成率入力済み: %dタスク / 未入力: %dタスク\n", achievementFilled, achievementMissing))
+	sb.WriteString(fmt.Sprintf("- タイムブロッキング済み: %dタスク / 未配置: %dタスク\n", timeBlocked, len(tasks)-timeBlocked))
+	sb.WriteString("- 注意: 達成率が未入力のタスクはパターン分析から除外し、その旨をレポートに明記してください。\n")
+	sb.WriteString("- 注意: 振り返りが記録されていない日は欠損として扱い、継続的な記録の重要性を指摘してください。\n")
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+// buildFewShotSection は達成率100%かつタイムブロッキング済みのタスクを最大3件抽出し、
+// Exemplar Injection（参照データ注入）としてフォーマットしたテキストを返します（施策1）。
+func buildFewShotSection(tasks []model.Task) string {
+	var examples []model.Task
+	for _, t := range tasks {
+		if t.AchievementRate != nil && *t.AchievementRate == 100 &&
+			t.StartTime != nil && t.EstimatedHours != nil {
+			examples = append(examples, t)
+			if len(examples) >= 3 {
+				break
+			}
+		}
+	}
+	if len(examples) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## 成功事例（参照データ）\n\n")
+	sb.WriteString("以下は達成率100%を記録したタスクの実例です（Exemplar Injection）。これと同様の粒度（具体的なタスク名・時間帯・工数・条件）で成功パターンを分析してください。\n\n")
+	for _, t := range examples {
+		sb.WriteString(fmt.Sprintf("- **%s**", t.Title))
+		sb.WriteString(fmt.Sprintf("（開始: %s", t.StartTime.Format("15:04")))
+		if t.EndTime != nil {
+			sb.WriteString(fmt.Sprintf("〜%s", t.EndTime.Format("15:04")))
+		}
+		sb.WriteString(fmt.Sprintf("、自己見積もり: %.1fh", *t.EstimatedHours))
+		if t.AiEstimatedHours != nil {
+			sb.WriteString(fmt.Sprintf("、AI見積もり: %.1fh", *t.AiEstimatedHours))
+		}
+		if t.Priority != nil {
+			if label, ok := priorityLabels[*t.Priority]; ok {
+				sb.WriteString(fmt.Sprintf("、優先度: %s", label))
+			}
+		}
+		sb.WriteString("）→ 達成率100%\n")
+	}
+	sb.WriteString("\n")
+	return sb.String()
 }
 
 // ────────────────────────────────────────────
