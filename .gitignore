@@ -107,8 +107,7 @@ coverage.out
 # Terraform
 ############################
 .terraform/
-*.tfstate
-*.tfstate.backup
+*.tfstate*
 *.tfvars
 service-account.json
 
