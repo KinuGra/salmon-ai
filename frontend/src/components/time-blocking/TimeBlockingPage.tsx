@@ -49,7 +49,6 @@ function DateNav({
   selected: Date;
   onChange: (d: Date) => void;
 }) {
-  // 選択日を中心に前後3日 = 合計7日
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(selected);
     d.setDate(d.getDate() - 3 + i);
@@ -57,56 +56,74 @@ function DateNav({
   });
 
   const todayStr = new Date().toDateString();
+  const isToday = selected.toDateString() === todayStr;
 
   return (
-    <div className="flex gap-1 mb-3">
-      {days.map((day, i) => {
-        const isSelected = day.toDateString() === selected.toDateString();
-        const isToday = day.toDateString() === todayStr;
-        const dow = day.getDay();
-        const isSat = dow === 6;
-        const isSun = dow === 0;
+    <div className="flex gap-1 mb-3 items-center">
+      {/* 既存の7日間ボタン */}
+      <div className="flex gap-1 flex-1">
+        {days.map((day, i) => {
+          const isSelected = day.toDateString() === selected.toDateString();
+          const isToday = day.toDateString() === todayStr;
+          const dow = day.getDay();
+          const isSat = dow === 6;
+          const isSun = dow === 0;
 
-        return (
-          <button
-            key={i}
-            onClick={() => onChange(new Date(day))}
-            className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${isSelected
-              ? "bg-indigo-600 shadow-sm"
-              : "hover:bg-slate-100 active:scale-95"
+          return (
+            <button
+              key={i}
+              onClick={() => onChange(new Date(day))}
+              className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${
+                isSelected
+                  ? "bg-indigo-600 shadow-sm"
+                  : "hover:bg-slate-100 active:scale-95"
               }`}
-          >
-            {/* 曜日 */}
-            <span
-              className={`text-[9px] font-semibold mb-0.5 leading-none ${isSelected
-                ? "text-indigo-200"
-                : isSat
-                  ? "text-blue-400"
-                  : isSun
-                    ? "text-red-400"
-                    : "text-slate-400"
-                }`}
             >
-              {DAY_LABELS[dow]}
-            </span>
-            {/* 日付 */}
-            <span
-              className={`text-[14px] font-bold leading-none ${isSelected
-                ? "text-white"
-                : isToday
-                  ? "text-indigo-600"
-                  : "text-slate-800"
+              {/* 曜日 */}
+              <span
+                className={`text-[9px] font-semibold mb-0.5 leading-none ${
+                  isSelected
+                    ? "text-indigo-200"
+                    : isSat
+                      ? "text-blue-400"
+                      : isSun
+                        ? "text-red-400"
+                        : "text-slate-400"
                 }`}
-            >
-              {day.getDate()}
-            </span>
-            {/* 今日インジケーター */}
-            {isToday && !isSelected && (
-              <div className="w-1 h-1 rounded-full bg-indigo-400 mt-1" />
-            )}
-          </button>
-        );
-      })}
+              >
+                {DAY_LABELS[dow]}
+              </span>
+              {/* 日付 */}
+              <span
+                className={`text-[14px] font-bold leading-none ${
+                  isSelected
+                    ? "text-white"
+                    : isToday
+                      ? "text-indigo-600"
+                      : "text-slate-800"
+                }`}
+              >
+                {day.getDate()}
+              </span>
+              {/* 今日インジケーター */}
+              {isToday && !isSelected && (
+                <div className="w-1 h-1 rounded-full bg-indigo-400 mt-1" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 「今日」ボタン - 非選択時のみ表示 */}
+      {!isToday && (
+        <button
+          onClick={() => onChange(new Date())}
+          className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-semibold hover:bg-indigo-100 hover:text-indigo-600 transition-colors whitespace-nowrap"
+          title="今日に移動"
+        >
+          今日
+        </button>
+      )}
     </div>
   );
 }
@@ -215,9 +232,7 @@ function AIModal({
           )}
 
           {/* エラー */}
-          {error && (
-            <p className="text-center text-red-500 py-4">{error}</p>
-          )}
+          {error && <p className="text-center text-red-500 py-4">{error}</p>}
 
           {/* 結果 */}
           {result && (
@@ -225,12 +240,13 @@ function AIModal({
               <p className="font-semibold text-slate-700 mb-2">診断結果</p>
 
               {/* 問題なし */}
-              {!result.issues.buffer_shortage && !result.issues.priority_bias && (
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-green-500">✓</span>
-                  <span>問題は検出されませんでした</span>
-                </div>
-              )}
+              {!result.issues.buffer_shortage &&
+                !result.issues.priority_bias && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-green-500">✓</span>
+                    <span>問題は検出されませんでした</span>
+                  </div>
+                )}
 
               {/* バッファ不足 */}
               {result.issues.buffer_shortage && (
@@ -244,14 +260,18 @@ function AIModal({
               {result.issues.priority_bias && (
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="text-amber-500 shrink-0">▲</span>
-                  <span className="text-amber-600 font-bold">優先度の偏りあり</span>
+                  <span className="text-amber-600 font-bold">
+                    優先度の偏りあり
+                  </span>
                 </div>
               )}
 
               {/* アドバイス */}
               <div className="mt-3 pt-3 border-t border-slate-200">
                 <p className="font-semibold text-slate-700 mb-1">アドバイス</p>
-                <p className="text-slate-600 leading-relaxed">{result.advice}</p>
+                <p className="text-slate-600 leading-relaxed">
+                  {result.advice}
+                </p>
               </div>
             </>
           )}
@@ -316,7 +336,9 @@ function TimeBlockingContent() {
         original?.estimated_hours !== updated.estimated_hours
       ) {
         const startMs = new Date(updated.start_time).getTime();
-        const endDate = new Date(startMs + updated.estimated_hours * 3600 * 1000);
+        const endDate = new Date(
+          startMs + updated.estimated_hours * 3600 * 1000,
+        );
         newEndTime = endDate.toISOString().slice(0, 19) + "Z";
       }
 
@@ -344,8 +366,8 @@ function TimeBlockingContent() {
         prev.map((t) =>
           t.id === saved.id
             ? { ...saved, end_time: newEndTime ?? saved.end_time }
-            : t
-        )
+            : t,
+        ),
       );
     } catch (e) {
       console.error("タスク更新エラー:", e);
@@ -399,10 +421,10 @@ function TimeBlockingContent() {
       prev.map((t: Task) =>
         t.id === id
           ? {
-            ...t,
-            achievement_rate: value,
-            ...(value === 100 ? { is_completed: true } : {}),
-          }
+              ...t,
+              achievement_rate: value,
+              ...(value === 100 ? { is_completed: true } : {}),
+            }
           : t,
       ),
     );
@@ -429,24 +451,32 @@ function TimeBlockingContent() {
       // インボックスゾーン上にドロップされたか判定（elementsFromPoint でz-indexに依存しない判定）
       if (dragType === "scheduled") {
         const clientX = lastDropXRef.current || window.innerWidth / 2;
-        const isOverInbox = document.elementsFromPoint(clientX, clientY)
+        const isOverInbox = document
+          .elementsFromPoint(clientX, clientY)
           .some((el) => (el as HTMLElement).dataset?.inboxDropZone === "true");
         if (isOverInbox) {
           const originalTasks = tasks;
           setTasks((prev: Task[]) =>
-            prev.map((t: Task) => t.id === taskId ? { ...t, start_time: null, end_time: null } : t)
+            prev.map((t: Task) =>
+              t.id === taskId ? { ...t, start_time: null, end_time: null } : t,
+            ),
           );
           fetch(`${API_BASE}/tasks/${taskId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ clear_start_time: true, clear_end_time: true }),
-          }).then((res) => {
-            if (!res.ok) throw new Error(`status ${res.status}`);
-          }).catch((e) => {
-            console.error("インボックス戻しエラー:", e);
-            setTasks(originalTasks);
-            showError("タスクをインボックスに戻せませんでした。");
-          });
+            body: JSON.stringify({
+              clear_start_time: true,
+              clear_end_time: true,
+            }),
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error(`status ${res.status}`);
+            })
+            .catch((e) => {
+              console.error("インボックス戻しエラー:", e);
+              setTasks(originalTasks);
+              showError("タスクをインボックスに戻せませんでした。");
+            });
           return;
         }
       }
@@ -464,8 +494,13 @@ function TimeBlockingContent() {
         start = topToIso(adjustedTop, selectedDate!);
         const existing = tasks.find((t) => t.id === taskId);
         if (existing?.start_time && existing?.end_time) {
-          const durationMs = new Date(existing.end_time).getTime() - new Date(existing.start_time).getTime();
-          end = new Date(new Date(start).getTime() + durationMs).toISOString().slice(0, 19) + "Z";
+          const durationMs =
+            new Date(existing.end_time).getTime() -
+            new Date(existing.start_time).getTime();
+          end =
+            new Date(new Date(start).getTime() + durationMs)
+              .toISOString()
+              .slice(0, 19) + "Z";
         } else {
           end = calculateDefaultEndTime(start);
         }
@@ -474,7 +509,9 @@ function TimeBlockingContent() {
         const droppedTask = tasks.find((t) => t.id === taskId);
         if (droppedTask?.estimated_hours) {
           const endDate = new Date(start);
-          endDate.setMinutes(endDate.getMinutes() + droppedTask.estimated_hours * 60);
+          endDate.setMinutes(
+            endDate.getMinutes() + droppedTask.estimated_hours * 60,
+          );
           end = endDate.toISOString().slice(0, 19) + "Z";
         } else {
           end = calculateDefaultEndTime(start);
@@ -483,38 +520,45 @@ function TimeBlockingContent() {
 
       const originalTasks = tasks;
       setTasks((prev: Task[]) =>
-        prev.map((t: Task) => t.id === taskId ? { ...t, start_time: start, end_time: end } : t)
+        prev.map((t: Task) =>
+          t.id === taskId ? { ...t, start_time: start, end_time: end } : t,
+        ),
       );
       fetch(`${API_BASE}/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_time: start, end_time: end }),
-      }).then((res) => {
-        if (!res.ok) throw new Error(`status ${res.status}`);
-      }).catch((e) => {
-        console.error("タイムブロック更新エラー:", e);
-        setTasks(originalTasks);
-        showError("タスクを移動できませんでした。");
-      });
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`status ${res.status}`);
+        })
+        .catch((e) => {
+          console.error("タイムブロック更新エラー:", e);
+          setTasks(originalTasks);
+          showError("タスクを移動できませんでした。");
+        });
     },
-    [selectedDate, tasks]
+    [selectedDate, tasks],
   );
 
   // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (!timelineRef.current) return;
-    const rect = timelineRef.current.getBoundingClientRect();
-    const rawTop = e.clientY - rect.top;
-    const dragInfo = dragInfoRef.current;
-    // grabOffset を考慮してブロック上端の位置を計算し、15分単位に丸める
-    const adjustedTop = rawTop - dragInfo.grabOffset;
-    const snappedTop =
-      Math.round(adjustedTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
-    const snappedBottom = snappedTop + dragInfo.durationMins * PX_PER_MIN;
-    setDropIndicator({ top: snappedTop, bottom: snappedBottom });
-  }, [dragInfoRef]);
+  const handleDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (!timelineRef.current) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const rawTop = e.clientY - rect.top;
+      const dragInfo = dragInfoRef.current;
+      // grabOffset を考慮してブロック上端の位置を計算し、15分単位に丸める
+      const adjustedTop = rawTop - dragInfo.grabOffset;
+      const snappedTop =
+        Math.round(adjustedTop / (15 * PX_PER_MIN)) * (15 * PX_PER_MIN);
+      const snappedBottom = snappedTop + dragInfo.durationMins * PX_PER_MIN;
+      setDropIndicator({ top: snappedTop, bottom: snappedBottom });
+    },
+    [dragInfoRef],
+  );
 
   const handleDragLeave = useCallback(() => {
     setDropIndicator(null);
@@ -775,18 +819,25 @@ function TimeBlockingContent() {
         </div>
 
         {/* 右カラム: PC専用インボックス（スマホでは非表示） */}
-        <InboxSidebar tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} onTouchDrop={handleTouchDrop} />
+        <InboxSidebar
+          tasks={inbox}
+          onReturnToInbox={handleReturnToInbox}
+          onEdit={setEditingTask}
+          onTouchDrop={handleTouchDrop}
+        />
       </div>
 
       {/* モバイル専用インボックスDrawer（PCでは非表示） */}
-      <InboxDrawer tasks={inbox} onReturnToInbox={handleReturnToInbox} onEdit={setEditingTask} onTouchDrop={handleTouchDrop} />
+      <InboxDrawer
+        tasks={inbox}
+        onReturnToInbox={handleReturnToInbox}
+        onEdit={setEditingTask}
+        onTouchDrop={handleTouchDrop}
+      />
 
       {/* AIモーダル */}
       {showAI && (
-        <AIModal
-          selectedDate={selectedDate}
-          onClose={() => setShowAI(false)}
-        />
+        <AIModal selectedDate={selectedDate} onClose={() => setShowAI(false)} />
       )}
 
       {/* タスク編集モーダル */}
