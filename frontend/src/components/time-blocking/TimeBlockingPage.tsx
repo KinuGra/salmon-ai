@@ -74,59 +74,69 @@ function DateNav({
   });
 
   const todayStr = new Date().toDateString();
+  const isToday = selected.toDateString() === todayStr;
 
   return (
-    <div className="flex gap-1 mb-3">
-      {days.map((day, i) => {
-        const isSelected = day.toDateString() === selected.toDateString();
-        const isToday = day.toDateString() === todayStr;
-        const dow = day.getDay();
-        const isSat = dow === 6;
-        const isSun = dow === 0;
+    <div className="flex gap-1 mb-3 items-center">
+      <div className="flex gap-1 flex-1">
+        {days.map((day, i) => {
+          const isSelected = day.toDateString() === selected.toDateString();
+          const isToday = day.toDateString() === todayStr;
+          const dow = day.getDay();
+          const isSat = dow === 6;
+          const isSun = dow === 0;
 
-        return (
-          <button
-            key={i}
-            onClick={() => onChange(new Date(day))}
-            className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${
-              isSelected
-                ? "bg-indigo-600 shadow-sm"
-                : "hover:bg-slate-100 active:scale-95"
-            }`}
-          >
-            {/* 曜日 */}
-            <span
-              className={`text-[9px] font-semibold mb-0.5 leading-none ${
+          return (
+            <button
+              key={i}
+              onClick={() => onChange(new Date(day))}
+              className={`flex-1 flex flex-col items-center py-1.5 rounded-xl transition-all ${
                 isSelected
-                  ? "text-indigo-200"
-                  : isSat
-                    ? "text-blue-400"
-                    : isSun
-                      ? "text-red-400"
-                      : "text-slate-400"
+                  ? "bg-indigo-600 shadow-sm"
+                  : "hover:bg-slate-100 active:scale-95"
               }`}
             >
-              {DAY_LABELS[dow]}
-            </span>
-            {/* 日付 */}
-            <span
-              className={`text-[14px] font-bold leading-none ${
-                isSelected
-                  ? "text-white"
-                  : isToday
-                    ? "text-indigo-600"
-                    : "text-slate-800"
-              }`}
-            >
-              {day.getDate()}
-            </span>
-            {/* 今日インジケーター */}
-            {isToday && !isSelected && (
-              <div className="w-1 h-1 rounded-full bg-indigo-400 mt-1" />
-            )}
-          </button>
-        );
-      })}
+              <span
+                className={`text-[9px] font-semibold mb-0.5 leading-none ${
+                  isSelected
+                    ? "text-indigo-200"
+                    : isSat
+                      ? "text-blue-400"
+                      : isSun
+                        ? "text-red-400"
+                        : "text-slate-400"
+                }`}
+              >
+                {DAY_LABELS[dow]}
+              </span>
+              <span
+                className={`text-[14px] font-bold leading-none ${
+                  isSelected
+                    ? "text-white"
+                    : isToday
+                      ? "text-indigo-600"
+                      : "text-slate-800"
+                }`}
+              >
+                {day.getDate()}
+              </span>
+              {isToday && !isSelected && (
+                <div className="w-1 h-1 rounded-full bg-indigo-400 mt-1" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {!isToday && (
+        <button
+          onClick={() => onChange(new Date())}
+          className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-semibold hover:bg-indigo-100 hover:text-indigo-600 transition-colors whitespace-nowrap"
+          title="今日に移動"
+        >
+          今日
+        </button>
+      )}
     </div>
   );
 }
