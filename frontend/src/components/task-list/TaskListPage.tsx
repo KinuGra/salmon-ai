@@ -5,7 +5,13 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Task } from "./types";
 import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
-import EditTaskModal, { Category, DurationInput, DueDateInput, CategorySelect, toLocalDateStr } from "./EditTaskModal";
+import EditTaskModal, {
+  Category,
+  DurationInput,
+  DueDateInput,
+  CategorySelect,
+  toLocalDateStr,
+} from "./EditTaskModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -34,7 +40,7 @@ function AddTaskModal({
       id: Date.now(),
       title: title.trim(),
       description: description.trim() || null,
-      priority: priority !== "" ? parseInt(priority) as 1 | 2 | 3 : null,
+      priority: priority !== "" ? (parseInt(priority) as 1 | 2 | 3) : null,
       is_completed: false,
       estimated_hours: durationMins != null ? durationMins / 60 : null,
       ai_estimated_hours: null,
@@ -49,18 +55,26 @@ function AddTaskModal({
     onClose();
   }
 
-  const inputCls = "w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition";
+  const inputCls =
+    "w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition";
   const labelCls = "text-[11px] font-semibold text-slate-500 mb-1.5 block";
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center pb-16 sm:pb-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl p-6 max-h-[90svh] overflow-y-auto">
         <div className="w-8 h-1 rounded-full bg-slate-200 mx-auto mb-5 sm:hidden" />
-        <h2 className="text-[16px] font-bold text-slate-900 mb-4">タスクを追加</h2>
+        <h2 className="text-[16px] font-bold text-slate-900 mb-4">
+          タスクを追加
+        </h2>
         <div className="flex flex-col gap-4">
           <div>
-            <label className={labelCls}>タスク名 <span className="text-red-400">*</span></label>
+            <label className={labelCls}>
+              タスク名 <span className="text-red-400">*</span>
+            </label>
             <input
               type="text"
               placeholder="タスク名を入力..."
@@ -95,11 +109,17 @@ function AddTaskModal({
           </div>
           <DurationInput initialMins={null} onChange={setDurationMins} />
           <DueDateInput initialDate={null} onChange={setDueDate} />
-          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
+          <CategorySelect
+            categories={categories}
+            value={categoryId}
+            onChange={setCategoryId}
+          />
         </div>
         <div className="flex gap-2.5 mt-6">
-          <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold hover:bg-slate-200 transition-colors">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 text-[13px] font-semibold hover:bg-slate-200 transition-colors"
+          >
             キャンセル
           </button>
           <button
@@ -114,7 +134,6 @@ function AddTaskModal({
     </div>
   );
 }
-
 
 // ────────────────────────────────────────────
 // メインページ
@@ -141,6 +160,10 @@ export default function TaskListPage() {
 
   async function handleUpdateTask(updated: Task, categoryId: number | null) {
     try {
+      const original = tasks.find((t) => t.id === updated.id);
+      const hasRange = updated.start_time != null && updated.end_time != null;
+      const hasNoRange = updated.start_time == null && updated.end_time == null;
+
       const body: Record<string, unknown> = {
         title: updated.title,
         description: updated.description,
@@ -152,29 +175,57 @@ export default function TaskListPage() {
       } else {
         body.clear_priority = true;
       }
-      if (updated.estimated_hours != null) {
-        body.estimated_hours = updated.estimated_hours;
-      } else {
-        body.clear_estimated_hours = true;
+
+      if (hasRange) {
+        body.start_time = updated.start_time;
+        body.end_time = updated.end_time;
+      } else if (
+        hasNoRange &&
+        (original?.start_time != null || original?.end_time != null)
+      ) {
+        body.clear_start_time = true;
+        body.clear_end_time = true;
       }
+
+      // start/end が両方ある場合はバックエンドで工数を自動計算する
+      if (!hasRange) {
+        if (updated.estimated_hours != null) {
+          body.estimated_hours = updated.estimated_hours;
+        } else {
+          body.clear_estimated_hours = true;
+        }
+      }
+
       const res = await fetch(`${API_BASE}/tasks/${updated.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) { console.error("タスク更新エラー:", res.status, await res.text()); return; }
+      if (!res.ok) {
+        console.error("タスク更新エラー:", res.status, await res.text());
+        return;
+      }
       const saved: Task = await res.json();
-      setTasks((prev: Task[]) => prev.map((t) => (t.id === saved.id ? saved : t)));
-    } catch (e) { console.error("タスク更新エラー:", e); }
+      setTasks((prev: Task[]) =>
+        prev.map((t) => (t.id === saved.id ? saved : t)),
+      );
+    } catch (e) {
+      console.error("タスク更新エラー:", e);
+    }
   }
 
   async function handleDeleteTask(id: number) {
     try {
       const res = await fetch(`${API_BASE}/tasks/${id}`, { method: "DELETE" });
-      if (!res.ok) { console.error("タスク削除エラー:", res.status, await res.text()); return; }
+      if (!res.ok) {
+        console.error("タスク削除エラー:", res.status, await res.text());
+        return;
+      }
       setTasks((prev: Task[]) => prev.filter((t) => t.id !== id));
       setEditingTask(null);
-    } catch (e) { console.error("タスク削除エラー:", e); }
+    } catch (e) {
+      console.error("タスク削除エラー:", e);
+    }
   }
 
   async function handleToggleComplete(task: Task) {
@@ -184,10 +235,15 @@ export default function TaskListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_completed: !task.is_completed }),
       });
-      if (!res.ok) { console.error("タスク更新エラー:", res.status, await res.text()); return; }
+      if (!res.ok) {
+        console.error("タスク更新エラー:", res.status, await res.text());
+        return;
+      }
       const saved: Task = await res.json();
       setTasks((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
-    } catch (e) { console.error("タスク更新エラー:", e); }
+    } catch (e) {
+      console.error("タスク更新エラー:", e);
+    }
   }
 
   async function handleAddTask(task: Task, categoryId: number | null) {
@@ -204,14 +260,19 @@ export default function TaskListPage() {
           category_id: categoryId,
         }),
       });
-      if (!res.ok) { console.error("タスク追加エラー:", res.status, await res.text()); return; }
+      if (!res.ok) {
+        console.error("タスク追加エラー:", res.status, await res.text());
+        return;
+      }
       const created: Task = await res.json();
       setTasks((prev: Task[]) => [created, ...prev]);
 
       // AI見積もりは非同期で実行されるため、完了後にタスクをリフェッチして反映
       setTimeout(async () => {
         try {
-          const updated = await fetch(`${API_BASE}/tasks`).then((r) => r.json());
+          const updated = await fetch(`${API_BASE}/tasks`).then((r) =>
+            r.json(),
+          );
           setTasks(updated);
         } catch (e) {
           console.error("AI見積もりリフェッチエラー:", e);
@@ -249,11 +310,14 @@ export default function TaskListPage() {
       !t.is_completed &&
       t.estimated_hours != null &&
       t.ai_estimated_hours != null &&
-      Math.abs(t.ai_estimated_hours - t.estimated_hours) > 0.5
+      Math.abs(t.ai_estimated_hours - t.estimated_hours) > 0.5,
   ).length;
 
   return (
-    <div className="flex flex-col bg-slate-50" style={{ height: "calc(100svh - var(--bottom-nav-height))" }}>
+    <div
+      className="flex flex-col bg-slate-50"
+      style={{ height: "calc(100svh - var(--bottom-nav-height))" }}
+    >
       {/* ── ヘッダー ── */}
       <div className="bg-white/90 backdrop-blur-sm flex-shrink-0 border-b border-slate-100">
         <div className="max-w-2xl mx-auto px-4 pt-5 pb-0">
@@ -269,7 +333,8 @@ export default function TaskListPage() {
               {/* サマリー */}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[12px] text-slate-500">
-                  未完了 <strong className="text-slate-800">{activeCnt}</strong> 件
+                  未完了 <strong className="text-slate-800">{activeCnt}</strong>{" "}
+                  件
                 </span>
                 {alertCnt > 0 && (
                   <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
@@ -325,34 +390,45 @@ export default function TaskListPage() {
 
       {/* ── タスクリスト ── */}
       <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-4 py-4">
-        {sorted.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-[14px] text-slate-400 font-medium">
-              {filter === "done" ? "完了済みタスクはありません" : "タスクはありません"}
-            </p>
-            {filter === "active" && (
-              <button
-                onClick={() => setShowAdd(true)}
-                className="mt-3 text-[12px] text-indigo-600 font-semibold hover:underline"
-              >
-                最初のタスクを追加する →
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {sorted.map((task) => (
-              <TaskListItem key={task.id} task={task} onEdit={() => setEditingTask(task)} onToggleComplete={() => handleToggleComplete(task)} />
-            ))}
-          </div>
-        )}
-      </div>
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          {sorted.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-[14px] text-slate-400 font-medium">
+                {filter === "done"
+                  ? "完了済みタスクはありません"
+                  : "タスクはありません"}
+              </p>
+              {filter === "active" && (
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="mt-3 text-[12px] text-indigo-600 font-semibold hover:underline"
+                >
+                  最初のタスクを追加する →
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {sorted.map((task) => (
+                <TaskListItem
+                  key={task.id}
+                  task={task}
+                  onEdit={() => setEditingTask(task)}
+                  onToggleComplete={() => handleToggleComplete(task)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── タスク追加モーダル ── */}
       {showAdd && (
-        <AddTaskModal onClose={() => setShowAdd(false)} onAdd={handleAddTask} categories={categories} />
+        <AddTaskModal
+          onClose={() => setShowAdd(false)}
+          onAdd={handleAddTask}
+          categories={categories}
+        />
       )}
 
       {/* ── タスク編集モーダル ── */}
