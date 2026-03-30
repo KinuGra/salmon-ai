@@ -76,9 +76,18 @@ export function DurationInput({
   const [customM, setCustomM] = useState<string>("0");
 
   useEffect(() => {
-    setSelectedMins(initialMins);
-    setCustomH("");
-    setCustomM("0");
+    const isQuick = DURATION_QUICK.some((d) => d.mins === initialMins);
+    if (isQuick || initialMins === null) {
+      setSelectedMins(initialMins);
+      setCustomH("");
+      setCustomM("0");
+    } else {
+      setSelectedMins(null);
+      const h = Math.floor(initialMins / 60);
+      const m = initialMins % 60;
+      setCustomH(String(h));
+      setCustomM(String(m));
+    }
   }, [initialMins]);
 
   const customDurationMins =
