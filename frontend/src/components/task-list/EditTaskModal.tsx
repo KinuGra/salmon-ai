@@ -61,6 +61,8 @@ function localDateTimeInputToIso(value: string): string | null {
   return d.toISOString().slice(0, 19) + "Z";
 }
 
+export { isoToLocalDateTimeInput, localDateTimeInputToIso };
+
 // ────────────────────────────────────────────
 // 共通: 見積もり時間入力
 // ────────────────────────────────────────────
@@ -254,7 +256,7 @@ export function DueDateInput({
   return (
     <div>
       <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">
-        期限（任意）
+        期限
       </label>
       {dueDate && (
         <div className="flex items-baseline justify-center gap-1.5 bg-indigo-50 rounded-xl py-2 mb-2">
@@ -352,7 +354,7 @@ export function CategorySelect({
   return (
     <div>
       <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">
-        カテゴリ（任意）
+        カテゴリ
       </label>
       <select
         value={value ?? ""}
@@ -540,7 +542,7 @@ export default function EditTaskModal({
           </div>
           <DurationInput initialMins={initMins} onChange={setDurationMins} />
           <div>
-            <label className={labelCls}>開始時間・終了時間（任意）</label>
+            <label className={labelCls}>開始時間・終了時間</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
                 type="datetime-local"
