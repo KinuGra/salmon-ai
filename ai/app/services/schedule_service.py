@@ -3,11 +3,10 @@ import os
 import re
 from datetime import datetime
 
-from google import genai
-from google.genai import types
-
 from app.prompts.schedule import SCHEDULE_SUPPORT_PROMPT
 from app.schemas.schedule import Issues, ScheduleRequest, ScheduleResponse
+from google import genai
+from google.genai import types
 
 
 def support(req: ScheduleRequest) -> ScheduleResponse:
@@ -31,7 +30,7 @@ def support(req: ScheduleRequest) -> ScheduleResponse:
 
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.0-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
@@ -41,7 +40,9 @@ def support(req: ScheduleRequest) -> ScheduleResponse:
 
     # マークダウンのコードブロックを除去
     text = response.text.strip()
-    finish_reason = response.candidates[0].finish_reason if response.candidates else "unknown"
+    finish_reason = (
+        response.candidates[0].finish_reason if response.candidates else "unknown"
+    )
     print(f"[schedule/support] finish_reason: {finish_reason}", flush=True)
     text = re.sub(r"^```json\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
