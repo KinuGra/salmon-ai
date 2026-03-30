@@ -9,28 +9,34 @@ import json
 import os
 import uuid
 from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING
 
-import chromadb
-import redis as redis_module
+if TYPE_CHECKING:
+    import chromadb as _chromadb_type
+    import redis as _redis_type
 
 # ── シングルトン ────────────────────────────────────────────────
-_redis_client: redis_module.Redis | None = None
+_redis_client = None
 _chroma_collection = None
 
 SHORT_TERM_TTL_SEC = 48 * 3600  # 48時間
 
 
-def _get_redis() -> redis_module.Redis:
+def _get_redis():
+    """Redis クライアントを返す。パッケージ未インストール時は ImportError を遅延させる。"""
     global _redis_client
     if _redis_client is None:
+        import redis as redis_module  # lazy import
         url = os.getenv("REDIS_URL", "redis://redis:6379")
         _redis_client = redis_module.from_url(url, decode_responses=True)
     return _redis_client
 
 
-def _get_collection() -> chromadb.Collection:
+def _get_collection():
+    """ChromaDB コレクションを返す。パッケージ未インストール時は ImportError を遅延させる。"""
     global _chroma_collection
     if _chroma_collection is None:
+        import chromadb  # lazy import
         persist_dir = os.getenv("CHROMA_PERSIST_DIR", "/chroma_data")
         client = chromadb.PersistentClient(path=persist_dir)
         _chroma_collection = client.get_or_create_collection(
