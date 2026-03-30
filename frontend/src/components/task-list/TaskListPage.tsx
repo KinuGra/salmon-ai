@@ -7,13 +7,15 @@ import { sortTasks } from "./utils";
 import TaskListItem from "./TaskListItem";
 import EditTaskModal, {
   Category,
+  CategoryDraft,
   DurationInput,
   DueDateInput,
   CategorySelect,
   toLocalDateStr,
-  isoToLocalDateTimeInput,
   localDateTimeInputToIso,
 } from "./EditTaskModal";
+
+import { resolveCategoryId } from "@/utils/categoryUtils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -26,7 +28,7 @@ function AddTaskModal({
   categories,
 }: {
   onClose: () => void;
-  onAdd: (task: Task, categoryId: number | null) => void;
+  onAdd: (task: Task, categoryDraft: CategoryDraft) => void;
   categories: Category[];
 }) {
   const [title, setTitle] = useState("");
@@ -34,7 +36,12 @@ function AddTaskModal({
   const [priority, setPriority] = useState("");
   const [durationMins, setDurationMins] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
-  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryDraft, setCategoryDraft] = useState<CategoryDraft>({
+    mode: "existing",
+    categoryId: null,
+    newCategoryName: "",
+    newCategoryColor: "#6366f1",
+  });
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
   const [timeError, setTimeError] = useState<string | null>(null);
@@ -70,6 +77,8 @@ function AddTaskModal({
 
   function handleAdd() {
     if (!title.trim()) return;
+    if (categoryDraft.mode === "new" && !categoryDraft.newCategoryName.trim())
+      return;
     if ((startAt && !endAt) || (!startAt && endAt)) {
       setTimeError("開始時間と終了時間はセットで入力してください");
       return;
@@ -108,7 +117,7 @@ function AddTaskModal({
       achievement_rate: null,
       category: null,
     };
-    onAdd(newTask, categoryId);
+    onAdd(newTask, categoryDraft);
     onClose();
   }
 
@@ -202,8 +211,8 @@ function AddTaskModal({
           <DueDateInput initialDate={null} onChange={setDueDate} />
           <CategorySelect
             categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
+            value={categoryDraft}
+            onChange={setCategoryDraft}
           />
         </div>
         <div className="flex gap-2.5 mt-6">
@@ -215,7 +224,11 @@ function AddTaskModal({
           </button>
           <button
             onClick={handleAdd}
-            disabled={!title.trim()}
+            disabled={
+              !title.trim() ||
+              (categoryDraft.mode === "new" &&
+                !categoryDraft.newCategoryName.trim())
+            }
             className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
             追加する
@@ -249,8 +262,14 @@ export default function TaskListPage() {
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  async function handleUpdateTask(updated: Task, categoryId: number | null) {
+  async function handleUpdateTask(updated: Task, categoryDraft: CategoryDraft) {
     try {
+      const categoryId = await resolveCategoryId(
+        categoryDraft,
+        categories,
+        setCategories,
+        API_BASE,
+      );
       const original = tasks.find((t) => t.id === updated.id);
       const hasRange = updated.start_time != null && updated.end_time != null;
       const hasNoRange = updated.start_time == null && updated.end_time == null;
@@ -337,8 +356,14 @@ export default function TaskListPage() {
     }
   }
 
-  async function handleAddTask(task: Task, categoryId: number | null) {
+  async function handleAddTask(task: Task, categoryDraft: CategoryDraft) {
     try {
+      const categoryId = await resolveCategoryId(
+        categoryDraft,
+        categories,
+        setCategories,
+        API_BASE,
+      );
       const res = await fetch(`${API_BASE}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -349,6 +374,8 @@ export default function TaskListPage() {
           estimated_hours: task.estimated_hours,
           due_date: task.due_date,
           category_id: categoryId,
+          start_time: task.start_time,
+          end_time: task.end_time,
         }),
       });
       if (!res.ok) {
@@ -373,6 +400,7 @@ export default function TaskListPage() {
       console.error("タスク追加エラー:", e);
     }
   }
+
   const [showAdd, setShowAdd] = useState(false);
 
   // BottomNav の + ボタンから ?new=1 で遷移してきた場合、モーダルを自動オープン

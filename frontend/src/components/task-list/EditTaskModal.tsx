@@ -4,6 +4,23 @@ import { useEffect, useState } from "react";
 import { Task } from "./types";
 
 export type Category = { id: number; name: string; color: string };
+export type CategoryDraft = {
+  mode: "existing" | "new";
+  categoryId: number | null;
+  newCategoryName: string;
+  newCategoryColor: string;
+};
+
+const CATEGORY_COLOR_PRESETS = [
+  "#6366f1",
+  "#0ea5e9",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#ec4899",
+  "#8b5cf6",
+  "#64748b",
+];
 
 const DURATION_QUICK: { label: string; mins: number }[] = [
   { label: "15m", mins: 15 },
@@ -28,10 +45,6 @@ function addDays(d: Date, n: number): Date {
   const r = new Date(d);
   r.setDate(r.getDate() + n);
   return r;
-}
-
-function makeDueDate(year: number, month: number, day: number): Date {
-  return new Date(year, month - 1, day);
 }
 
 function fmtMD(d: Date): string {
@@ -256,7 +269,7 @@ export function DueDateInput({
   return (
     <div>
       <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">
-        期限
+        期限（任意）
       </label>
       {dueDate && (
         <div className="flex items-baseline justify-center gap-1.5 bg-indigo-50 rounded-xl py-2 mb-2">
@@ -346,30 +359,122 @@ export function CategorySelect({
   onChange,
 }: {
   categories: Category[];
-  value: number | null;
-  onChange: (id: number | null) => void;
+  value: CategoryDraft;
+  onChange: (value: CategoryDraft) => void;
 }) {
   const inputCls =
     "w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition";
+
+  function updateDraft(fields: Partial<CategoryDraft>) {
+    onChange({ ...value, ...fields });
+  }
+
+  function handleCustomColorInput(raw: string) {
+    let next = raw.trim();
+    if (!next) {
+      updateDraft({ newCategoryColor: "#6366f1" });
+      return;
+    }
+    if (!next.startsWith("#")) next = `#${next}`;
+    updateDraft({ newCategoryColor: next.slice(0, 7) });
+  }
+
   return (
     <div>
       <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">
-        カテゴリ
+        カテゴリ（任意）
       </label>
-      <select
-        value={value ?? ""}
-        onChange={(e) =>
-          onChange(e.target.value ? parseInt(e.target.value) : null)
-        }
-        className={`${inputCls} bg-white`}
-      >
-        <option value="">なし</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/80">
+        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+          <button
+            type="button"
+            onClick={() => updateDraft({ mode: "existing" })}
+            className={`py-2 rounded-lg text-[12px] font-bold border transition-all active:scale-95 ${
+              value.mode === "existing"
+                ? "bg-indigo-600 text-white border-indigo-600"
+                : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+            }`}
+          >
+            既存から選択
+          </button>
+          <button
+            type="button"
+            onClick={() => updateDraft({ mode: "new", categoryId: null })}
+            className={`py-2 rounded-lg text-[12px] font-bold border transition-all active:scale-95 ${
+              value.mode === "new"
+                ? "bg-indigo-600 text-white border-indigo-600"
+                : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+            }`}
+          >
+            新規カテゴリ作成
+          </button>
+        </div>
+
+        {value.mode === "existing" ? (
+          <select
+            value={value.categoryId ?? ""}
+            onChange={(e) =>
+              updateDraft({
+                categoryId: e.target.value ? parseInt(e.target.value) : null,
+              })
+            }
+            className={`${inputCls} bg-white`}
+          >
+            <option value="">なし</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            <input
+              type="text"
+              value={value.newCategoryName}
+              onChange={(e) => updateDraft({ newCategoryName: e.target.value })}
+              placeholder="カテゴリ名を入力"
+              className={inputCls}
+            />
+
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_COLOR_PRESETS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => updateDraft({ newCategoryColor: color })}
+                  className={`w-7 h-7 rounded-full border-2 transition-transform active:scale-95 ${
+                    value.newCategoryColor.toLowerCase() === color
+                      ? "border-slate-700 scale-110"
+                      : "border-white"
+                  }`}
+                  style={{ backgroundColor: color }}
+                  aria-label={`色 ${color}`}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={value.newCategoryColor}
+                onChange={(e) =>
+                  updateDraft({ newCategoryColor: e.target.value })
+                }
+                className="w-11 h-10 rounded-xl border border-slate-200 bg-white p-1"
+                aria-label="色を選択"
+              />
+              <input
+                type="text"
+                value={value.newCategoryColor}
+                onChange={(e) => handleCustomColorInput(e.target.value)}
+                placeholder="#6366f1"
+                className={`${inputCls} font-mono uppercase`}
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -386,7 +491,7 @@ export default function EditTaskModal({
 }: {
   task: Task;
   onClose: () => void;
-  onUpdate: (updated: Task, categoryId: number | null) => void;
+  onUpdate: (updated: Task, categoryDraft: CategoryDraft) => void;
   onDelete: (id: number) => void;
   categories: Category[];
 }) {
@@ -395,9 +500,12 @@ export default function EditTaskModal({
   const [priority, setPriority] = useState(
     task.priority != null ? String(task.priority) : "",
   );
-  const [categoryId, setCategoryId] = useState<number | null>(
-    task.category?.id ?? null,
-  );
+  const [categoryDraft, setCategoryDraft] = useState<CategoryDraft>({
+    mode: "existing",
+    categoryId: task.category?.id ?? null,
+    newCategoryName: "",
+    newCategoryColor: "#6366f1",
+  });
 
   const initMins =
     task.estimated_hours != null ? Math.round(task.estimated_hours * 60) : null;
@@ -444,6 +552,8 @@ export default function EditTaskModal({
 
   function handleSave() {
     if (!title.trim()) return;
+    if (categoryDraft.mode === "new" && !categoryDraft.newCategoryName.trim())
+      return;
     if ((startAt && !endAt) || (!startAt && endAt)) {
       setTimeError("開始時間と終了時間はセットで入力してください");
       return;
@@ -478,7 +588,7 @@ export default function EditTaskModal({
         start_time: startIso,
         end_time: endIso,
       },
-      categoryId,
+      categoryDraft,
     );
     onClose();
   }
@@ -578,8 +688,8 @@ export default function EditTaskModal({
           <DueDateInput initialDate={initDue} onChange={setDueDate} />
           <CategorySelect
             categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
+            value={categoryDraft}
+            onChange={setCategoryDraft}
           />
         </div>
         <div className="flex gap-2.5 mt-6">
@@ -591,7 +701,11 @@ export default function EditTaskModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={!title.trim()}
+            disabled={
+              !title.trim() ||
+              (categoryDraft.mode === "new" &&
+                !categoryDraft.newCategoryName.trim())
+            }
             className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-[13px] font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
             保存する
