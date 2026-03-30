@@ -37,6 +37,7 @@ func (s *ReportService) GetLatestReport(userID uint) (*model.Report, error) {
 // ── AI通信用の内部DTOです ──────────────────────────────────────
 
 type generateReportRequest struct {
+	UserID  string `json:"user_id"`
 	Context string `json:"context"`
 }
 
@@ -54,7 +55,10 @@ func (s *ReportService) GenerateReport(userID uint) (*model.Report, error) {
 	}
 
 	// 2. AIサービスへリクエスト
-	data, err := s.aiClient.Post("/report/generate", generateReportRequest{Context: ctx})
+	data, err := s.aiClient.Post("/report/generate", generateReportRequest{
+		UserID:  fmt.Sprintf("%d", userID),
+		Context: ctx,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("report_service: AI request failed: %w", err)
 	}

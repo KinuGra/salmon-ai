@@ -4,6 +4,7 @@ import re
 from google import genai
 from google.genai import types
 
+from app.memory.injector import enrich_context
 from app.prompts.report import COLD_START_PROMPT, REPORT_PROMPT
 from app.schemas.report import ReportRequest, ReportResponse
 
@@ -37,8 +38,9 @@ def generate_report(req: ReportRequest) -> ReportResponse:
 
     client = genai.Client(api_key=api_key)
 
+    enriched_context = enrich_context(req.user_id, req.context)
     prompt_template = _select_prompt(req.context)
-    prompt = prompt_template.format(context=req.context)
+    prompt = prompt_template.format(context=enriched_context)
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,

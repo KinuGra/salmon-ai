@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class ReportRequest(BaseModel):
     """GoのContextBuilderが生成したコンテキスト文字列を受け取ります。"""
+    user_id: str
     context: str
 
 

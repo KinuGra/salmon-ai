@@ -55,6 +55,7 @@ type chatMessage struct {
 
 // chatRequest はAIサービスの /reflection/stream に送るリクエスト構造体です。
 type chatRequest struct {
+	UserID      string        `json:"user_id"`
 	Context     string        `json:"context"`
 	Messages    []chatMessage `json:"messages"`
 	UserMessage string        `json:"user_message"`
@@ -94,6 +95,7 @@ func (s *ReflectionService) StreamChat(userID uint, reflectionID uint, userMessa
 	}
 
 	req := chatRequest{
+		UserID:      fmt.Sprintf("%d", userID),
 		Context:     context,
 		Messages:    chatMessages,
 		UserMessage: userMessage,
