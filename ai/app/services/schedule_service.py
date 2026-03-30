@@ -3,6 +3,7 @@ import os
 import re
 from datetime import datetime
 
+from app.constants import GEMINI_MODEL
 from app.prompts.schedule import SCHEDULE_SUPPORT_PROMPT
 from app.schemas.schedule import Issues, ScheduleRequest, ScheduleResponse
 from google import genai
@@ -30,7 +31,7 @@ def support(req: ScheduleRequest) -> ScheduleResponse:
 
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,

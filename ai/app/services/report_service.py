@@ -1,5 +1,6 @@
 import os
 
+from app.constants import GEMINI_MODEL
 from app.prompts.report import REPORT_PROMPT
 from app.schemas.report import ReportRequest, ReportResponse
 from google import genai
@@ -21,7 +22,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
 
     prompt = REPORT_PROMPT.format(context=req.context)
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,

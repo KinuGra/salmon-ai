@@ -2,6 +2,7 @@ import os
 from typing import Generator
 
 import google.genai.errors
+from app.constants import GEMINI_MODEL
 from app.prompts.reflection import REFLECTION_PROMPT
 from app.schemas.reflection import ReflectionRequest
 from google import genai
@@ -34,7 +35,7 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
 
     try:
         for chunk in client.models.generate_content_stream(
-            model="gemini-2.0-flash",
+            model=GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.7,
