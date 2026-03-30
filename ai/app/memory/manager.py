@@ -48,7 +48,7 @@ def _check_contradiction(existing_fact: str, new_fact: str) -> str:
     client = genai.Client(api_key=api_key)
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
+            model="gemini-2.5-flash-lite",
             contents=_CONTRADICTION_PROMPT.format(
                 existing=existing_fact,
                 new_fact=new_fact,

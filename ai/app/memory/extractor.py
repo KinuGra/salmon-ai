@@ -72,7 +72,7 @@ def extract_memories(messages: list[dict], user_message: str) -> list[dict]:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
+            model="gemini-2.5-flash-lite",
             contents=EXTRACTION_PROMPT.format(conversation=conversation),
             config=types.GenerateContentConfig(
                 temperature=0.1,
