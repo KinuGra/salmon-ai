@@ -14,20 +14,9 @@ import EditTaskModal, {
   toLocalDateStr,
 } from "./EditTaskModal";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+import { normalizeHexColor, resolveCategoryId } from "@/utils/categoryUtils";
 
-function normalizeHexColor(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return "#6366f1";
-  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
-  const hex = withHash
-    .slice(1)
-    .replace(/[^0-9a-fA-F]/g, "")
-    .toLowerCase();
-  if (hex.length === 3 || hex.length === 6) return `#${hex}`;
-  if (hex.length > 6) return `#${hex.slice(0, 6)}`;
-  return "#6366f1";
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 // ────────────────────────────────────────────
 // タスク追加モーダル
@@ -183,43 +172,14 @@ export default function TaskListPage() {
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  async function resolveCategoryId(
-    categoryDraft: CategoryDraft,
-  ): Promise<number | null> {
-    if (categoryDraft.mode === "existing") {
-      return categoryDraft.categoryId;
-    }
-
-    const name = categoryDraft.newCategoryName.trim();
-    if (!name) {
-      return null;
-    }
-
-    const existing = categories.find((c) => c.name === name);
-    if (existing) {
-      return existing.id;
-    }
-
-    const res = await fetch(`${API_BASE}/categories`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        color: normalizeHexColor(categoryDraft.newCategoryColor),
-      }),
-    });
-    if (!res.ok) throw new Error(`status ${res.status}`);
-
-    const created: Category = await res.json();
-    setCategories((prev) =>
-      prev.some((c) => c.id === created.id) ? prev : [...prev, created],
-    );
-    return created.id;
-  }
-
   async function handleUpdateTask(updated: Task, categoryDraft: CategoryDraft) {
     try {
-      const categoryId = await resolveCategoryId(categoryDraft);
+      const categoryId = await resolveCategoryId(
+        categoryDraft,
+        categories,
+        setCategories,
+        API_BASE,
+      );
       const body: Record<string, unknown> = {
         title: updated.title,
         description: updated.description,
@@ -288,7 +248,12 @@ export default function TaskListPage() {
 
   async function handleAddTask(task: Task, categoryDraft: CategoryDraft) {
     try {
-      const categoryId = await resolveCategoryId(categoryDraft);
+      const categoryId = await resolveCategoryId(
+        categoryDraft,
+        categories,
+        setCategories,
+        API_BASE,
+      );
       const res = await fetch(`${API_BASE}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
