@@ -2,10 +2,16 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Task, ScheduleResponse } from "./types";
-import EditTaskModal, { Category } from "../task-list/EditTaskModal";
+import EditTaskModal, {
+  Category,
+  CategoryDraft,
+} from "../task-list/EditTaskModal";
 import { DragProvider, useDragContext } from "./DragContext";
 
+import { normalizeHexColor, resolveCategoryId } from "@/utils/categoryUtils";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
 import {
   PX_PER_MIN,
   TIMELINE_START_HOUR,
@@ -49,6 +55,7 @@ function DateNav({
   selected: Date;
   onChange: (d: Date) => void;
 }) {
+  // 選択日を中心に前後3日 = 合計7日
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(selected);
     d.setDate(d.getDate() - 3 + i);
@@ -60,7 +67,6 @@ function DateNav({
 
   return (
     <div className="flex gap-1 mb-3 items-center">
-      {/* 既存の7日間ボタン */}
       <div className="flex gap-1 flex-1">
         {days.map((day, i) => {
           const isSelected = day.toDateString() === selected.toDateString();
@@ -79,7 +85,6 @@ function DateNav({
                   : "hover:bg-slate-100 active:scale-95"
               }`}
             >
-              {/* 曜日 */}
               <span
                 className={`text-[9px] font-semibold mb-0.5 leading-none ${
                   isSelected
@@ -93,7 +98,6 @@ function DateNav({
               >
                 {DAY_LABELS[dow]}
               </span>
-              {/* 日付 */}
               <span
                 className={`text-[14px] font-bold leading-none ${
                   isSelected
@@ -105,7 +109,6 @@ function DateNav({
               >
                 {day.getDate()}
               </span>
-              {/* 今日インジケーター */}
               {isToday && !isSelected && (
                 <div className="w-1 h-1 rounded-full bg-indigo-400 mt-1" />
               )}
@@ -114,7 +117,6 @@ function DateNav({
         })}
       </div>
 
-      {/* 「今日」ボタン - 非選択時のみ表示 */}
       {!isToday && (
         <button
           onClick={() => onChange(new Date())}
@@ -325,8 +327,14 @@ function TimeBlockingContent() {
       .catch((e) => console.error("タスク取得エラー:", e));
   }, [selectedDate]);
 
-  async function handleUpdateTask(updated: Task, categoryId: number | null) {
+  async function handleUpdateTask(updated: Task, categoryDraft: CategoryDraft) {
     try {
+      const categoryId = await resolveCategoryId(
+        categoryDraft,
+        categories,
+        setCategories,
+        API_BASE,
+      );
       // タイムブロック済み & estimated_hours が変わった場合は end_time を再計算して PUT に含める
       let newEndTime: string | undefined = undefined;
       const original = tasks.find((t) => t.id === updated.id);
@@ -538,7 +546,7 @@ function TimeBlockingContent() {
           showError("タスクを移動できませんでした。");
         });
     },
-    [selectedDate, tasks],
+    [dragInfoRef, lastDropXRef, selectedDate, tasks],
   );
 
   // ③ D&D: タイムライン上でドラッグオーバー中 → インジケーター更新
