@@ -12,9 +12,10 @@ import EditTaskModal, {
   DueDateInput,
   CategorySelect,
   toLocalDateStr,
+  localDateTimeInputToIso,
 } from "./EditTaskModal";
 
-import { normalizeHexColor, resolveCategoryId } from "@/utils/categoryUtils";
+import { resolveCategoryId } from "@/utils/categoryUtils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -41,23 +42,78 @@ function AddTaskModal({
     newCategoryName: "",
     newCategoryColor: "#6366f1",
   });
+  const [startAt, setStartAt] = useState<string>("");
+  const [endAt, setEndAt] = useState<string>("");
+  const [timeError, setTimeError] = useState<string | null>(null);
+
+  function applyDurationFromRange(nextStart: string, nextEnd: string) {
+    if (!nextStart || !nextEnd) return;
+    const start = new Date(nextStart);
+    const end = new Date(nextEnd);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+    const diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
+    if (diffMins > 0) {
+      setDurationMins(diffMins);
+    }
+  }
+
+  function handleChangeStart(next: string) {
+    setStartAt(next);
+    setTimeError(null);
+    applyDurationFromRange(next, endAt);
+  }
+
+  function handleChangeEnd(next: string) {
+    setEndAt(next);
+    setTimeError(null);
+    applyDurationFromRange(startAt, next);
+  }
+
+  function clearRange() {
+    setStartAt("");
+    setEndAt("");
+    setTimeError(null);
+  }
 
   function handleAdd() {
     if (!title.trim()) return;
     if (categoryDraft.mode === "new" && !categoryDraft.newCategoryName.trim())
       return;
+    if ((startAt && !endAt) || (!startAt && endAt)) {
+      setTimeError("開始時間と終了時間はセットで入力してください");
+      return;
+    }
+
+    if (startAt && endAt) {
+      const start = new Date(startAt);
+      const end = new Date(endAt);
+      if (end.getTime() <= start.getTime()) {
+        setTimeError("終了時間は開始時間より後にしてください");
+        return;
+      }
+    }
+
+    const startIso = localDateTimeInputToIso(startAt);
+    const endIso = localDateTimeInputToIso(endAt);
+    const computedHours =
+      startAt && endAt
+        ? (new Date(endAt).getTime() - new Date(startAt).getTime()) / 3600000
+        : durationMins != null
+          ? durationMins / 60
+          : null;
+
     const newTask: Task = {
       id: Date.now(),
       title: title.trim(),
       description: description.trim() || null,
       priority: priority !== "" ? (parseInt(priority) as 1 | 2 | 3) : null,
       is_completed: false,
-      estimated_hours: durationMins != null ? durationMins / 60 : null,
+      estimated_hours: computedHours,
       ai_estimated_hours: null,
       ai_estimation_reason: null,
       due_date: dueDate ? toLocalDateStr(dueDate) : null,
-      start_time: null,
-      end_time: null,
+      start_time: startIso,
+      end_time: endIso,
       achievement_rate: null,
       category: null,
     };
@@ -118,6 +174,40 @@ function AddTaskModal({
             </select>
           </div>
           <DurationInput initialMins={null} onChange={setDurationMins} />
+          <div>
+            <label className={labelCls}>開始時間・終了時間</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => handleChangeStart(e.target.value)}
+                className={inputCls}
+              />
+              <input
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => handleChangeEnd(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-[11px] text-slate-400">
+                開始・終了を設定すると差分から工数を自動計算します
+              </p>
+              {(startAt || endAt) && (
+                <button
+                  type="button"
+                  onClick={clearRange}
+                  className="text-[11px] text-slate-400 hover:text-red-500 px-1"
+                >
+                  クリア
+                </button>
+              )}
+            </div>
+            {timeError && (
+              <p className="text-[11px] text-red-500 mt-1">{timeError}</p>
+            )}
+          </div>
           <DueDateInput initialDate={null} onChange={setDueDate} />
           <CategorySelect
             categories={categories}
@@ -180,6 +270,10 @@ export default function TaskListPage() {
         setCategories,
         API_BASE,
       );
+      const original = tasks.find((t) => t.id === updated.id);
+      const hasRange = updated.start_time != null && updated.end_time != null;
+      const hasNoRange = updated.start_time == null && updated.end_time == null;
+
       const body: Record<string, unknown> = {
         title: updated.title,
         description: updated.description,
@@ -191,11 +285,27 @@ export default function TaskListPage() {
       } else {
         body.clear_priority = true;
       }
-      if (updated.estimated_hours != null) {
-        body.estimated_hours = updated.estimated_hours;
-      } else {
-        body.clear_estimated_hours = true;
+
+      if (hasRange) {
+        body.start_time = updated.start_time;
+        body.end_time = updated.end_time;
+      } else if (
+        hasNoRange &&
+        (original?.start_time != null || original?.end_time != null)
+      ) {
+        body.clear_start_time = true;
+        body.clear_end_time = true;
       }
+
+      // start/end が両方ある場合はバックエンドで工数を自動計算する
+      if (!hasRange) {
+        if (updated.estimated_hours != null) {
+          body.estimated_hours = updated.estimated_hours;
+        } else {
+          body.clear_estimated_hours = true;
+        }
+      }
+
       const res = await fetch(`${API_BASE}/tasks/${updated.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -264,6 +374,8 @@ export default function TaskListPage() {
           estimated_hours: task.estimated_hours,
           due_date: task.due_date,
           category_id: categoryId,
+          start_time: task.start_time,
+          end_time: task.end_time,
         }),
       });
       if (!res.ok) {
@@ -288,6 +400,7 @@ export default function TaskListPage() {
       console.error("タスク追加エラー:", e);
     }
   }
+
   const [showAdd, setShowAdd] = useState(false);
 
   // BottomNav の + ボタンから ?new=1 で遷移してきた場合、モーダルを自動オープン

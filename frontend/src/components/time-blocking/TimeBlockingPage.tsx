@@ -335,31 +335,34 @@ function TimeBlockingContent() {
         setCategories,
         API_BASE,
       );
-      // タイムブロック済み & estimated_hours が変わった場合は end_time を再計算して PUT に含める
+      // タイムブロック済み & estimated_hours が変わった場合は end_time を再計算してPUTに含わる
       let newEndTime: string | undefined = undefined;
       const original = tasks.find((t) => t.id === updated.id);
-      if (
-        updated.start_time &&
-        updated.estimated_hours != null &&
-        original?.estimated_hours !== updated.estimated_hours
-      ) {
-        const startMs = new Date(updated.start_time).getTime();
-        const endDate = new Date(
-          startMs + updated.estimated_hours * 3600 * 1000,
-        );
-        newEndTime = endDate.toISOString().slice(0, 19) + "Z";
-      }
+      const hasRange = updated.start_time != null && updated.end_time != null;
+      const hasNoRange = updated.start_time == null && updated.end_time == null;
 
       const body: Record<string, unknown> = {
         title: updated.title,
         description: updated.description,
         priority: updated.priority,
-        estimated_hours: updated.estimated_hours,
         due_date: updated.due_date,
         category_id: categoryId,
       };
-      if (newEndTime !== undefined) {
-        body.end_time = newEndTime;
+
+      if (hasRange) {
+        body.start_time = updated.start_time;
+        body.end_time = updated.end_time;
+      } else if (
+        hasNoRange &&
+        (original?.start_time != null || original?.end_time != null)
+      ) {
+        body.clear_start_time = true;
+        body.clear_end_time = true;
+      }
+
+      // start/end が両方ある場合はバックエンドで工数を自動計算する
+      if (!hasRange) {
+        body.estimated_hours = updated.estimated_hours;
       }
 
       const res = await fetch(`${API_BASE}/tasks/${updated.id}`, {
@@ -369,13 +372,8 @@ function TimeBlockingContent() {
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
       const saved: Task = await res.json();
-      // オプティミスティック更新: end_time も反映する
       setTasks((prev: Task[]) =>
-        prev.map((t) =>
-          t.id === saved.id
-            ? { ...saved, end_time: newEndTime ?? saved.end_time }
-            : t,
-        ),
+        prev.map((t) => (t.id === saved.id ? saved : t)),
       );
     } catch (e) {
       console.error("タスク更新エラー:", e);
