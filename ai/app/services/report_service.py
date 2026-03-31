@@ -1,10 +1,10 @@
 import os
 
-from google import genai
-from google.genai import types
-
+from app.constants import GEMINI_MODEL
 from app.prompts.report import REPORT_PROMPT
 from app.schemas.report import ReportRequest, ReportResponse
+from google import genai
+from google.genai import types
 
 
 def generate_report(req: ReportRequest) -> ReportResponse:
@@ -22,7 +22,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
 
     prompt = REPORT_PROMPT.format(context=req.context)
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
@@ -31,7 +31,9 @@ def generate_report(req: ReportRequest) -> ReportResponse:
     )
 
     if not response.candidates:
-        raise ValueError(f"No candidates in response. prompt_feedback: {response.prompt_feedback}")
+        raise ValueError(
+            f"No candidates in response. prompt_feedback: {response.prompt_feedback}"
+        )
 
     candidate = response.candidates[0]
     if not candidate.content.parts:

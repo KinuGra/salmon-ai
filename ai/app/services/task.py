@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from google import genai
 from google.genai import types
 
+from app.constants import GEMINI_MODEL
 from app.prompts.task import SYSTEM_PROMPT, build_task_estimate_prompt
 from app.schemas.task import TaskEstimateRequest, TaskEstimateResponse
 
@@ -36,7 +37,7 @@ def estimate_task_service(request: TaskEstimateRequest) -> TaskEstimateResponse:
     for attempt in range(_MAX_RETRIES):
         try:
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model=GEMINI_MODEL,
                 contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
                 config=types.GenerateContentConfig(
                     temperature=0.3,
