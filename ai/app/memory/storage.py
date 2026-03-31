@@ -8,7 +8,7 @@
 import json
 import os
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -46,6 +46,11 @@ def _get_collection():
     return _chroma_collection
 
 
+def _today_utc() -> str:
+    """UTC 基準の今日の日付文字列を返す（サーバーのローカル時刻に依存しない）。"""
+    return datetime.now(timezone.utc).date().isoformat()
+
+
 # ── Short-term（Redis） ─────────────────────────────────────────
 
 def save_short_term(user_id: str, facts: list[dict]) -> None:
@@ -53,7 +58,7 @@ def save_short_term(user_id: str, facts: list[dict]) -> None:
     if not facts:
         return
     r = _get_redis()
-    key = f"short:{user_id}:{date.today().isoformat()}"
+    key = f"short:{user_id}:{_today_utc()}"
 
     existing_raw = r.get(key)
     existing: list[dict] = json.loads(existing_raw) if existing_raw else []
@@ -69,7 +74,7 @@ def save_short_term(user_id: str, facts: list[dict]) -> None:
 def get_short_term(user_id: str) -> list[dict]:
     """今日の短期記憶を返す。存在しない場合は空リスト。"""
     r = _get_redis()
-    key = f"short:{user_id}:{date.today().isoformat()}"
+    key = f"short:{user_id}:{_today_utc()}"
     raw = r.get(key)
     return json.loads(raw) if raw else []
 
@@ -100,7 +105,7 @@ def query_long_term(
 ) -> list[dict]:
     """
     ChromaDB から意味検索でユーザーの長期記憶を返す。
-    戻り値: [{"fact", "category", "confidence", "created_at", "distance"}]
+    戻り値: [{"id", "fact", "category", "confidence", "created_at", "distance"}]
     """
     collection = _get_collection()
 
@@ -122,12 +127,14 @@ def query_long_term(
         return []
 
     items = []
-    for doc, dist, meta in zip(
+    for id_, doc, dist, meta in zip(
+        results["ids"][0],
         results["documents"][0],
         results["distances"][0],
         results["metadatas"][0],
     ):
         items.append({
+            "id": id_,
             "fact": doc,
             "category": meta.get("category", "behavior"),
             "confidence": meta.get("confidence", 0.7),
@@ -135,24 +142,26 @@ def query_long_term(
             "distance": dist,
         })
 
-    # access_count をインクリメント（best-effort）
+    # access_count をインクリメント（バッチで一度に更新）
     try:
         ids = results["ids"][0]
-        for i, meta in enumerate(results["metadatas"][0]):
+        updated_metadatas = []
+        for meta in results["metadatas"][0]:
             updated_meta = dict(meta)
             updated_meta["access_count"] = int(meta.get("access_count", 0)) + 1
-            collection.update(ids=[ids[i]], metadatas=[updated_meta])
+            updated_metadatas.append(updated_meta)
+        collection.update(ids=ids, metadatas=updated_metadatas)
     except Exception:
         pass
 
     return items
 
 
-def delete_long_term_by_fact(user_id: str, fact_text: str) -> None:
-    """指定した事実テキストの長期記憶を削除する。"""
+def delete_long_term_by_id(memory_id: str) -> None:
+    """指定 ID の長期記憶を削除する。"""
     collection = _get_collection()
     try:
-        collection.delete(where={"user_id": user_id, "fact": fact_text})
+        collection.delete(ids=[memory_id])
     except Exception:
         pass
 

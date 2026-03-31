@@ -1,5 +1,4 @@
 import os
-import re
 
 from google import genai
 from google.genai import types
@@ -13,14 +12,11 @@ from app.schemas.report import ReportRequest, ReportResponse
 _COLD_START_THRESHOLD = 5
 
 
-def _select_prompt(context: str) -> str:
+def _select_prompt(task_count: int) -> str:
     """
-    コンテキスト文字列からタスク件数を抽出し、適切なプロンプトテンプレートを返します（施策2）。
-    「合計: N件」という形式は context_builder.go の BuildFullContext が保証します。
-    パース失敗時はフォールバックとして通常プロンプトを使用します。
+    Go側から受け取ったタスク件数をもとに適切なプロンプトテンプレートを返します（施策2）。
+    context_builder.go のフォーマット変更に依存しない明示的なフィールドで判定します。
     """
-    match = re.search(r'合計:\s*(\d+)件', context)
-    task_count = int(match.group(1)) if match else _COLD_START_THRESHOLD
     return COLD_START_PROMPT if task_count < _COLD_START_THRESHOLD else REPORT_PROMPT
 
 
@@ -43,7 +39,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
     except Exception:
         # Redis / ChromaDB 未起動など記憶取得に失敗した場合は元のコンテキストで続行
         enriched_context = req.context
-    prompt_template = _select_prompt(req.context)
+    prompt_template = _select_prompt(req.task_count)
     prompt = prompt_template.format(context=enriched_context)
     response = client.models.generate_content(
         model="gemini-2.5-flash",

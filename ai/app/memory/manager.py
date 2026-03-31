@@ -17,7 +17,7 @@ from google import genai
 from google.genai import types
 
 from app.memory.storage import (
-    delete_long_term_by_fact,
+    delete_long_term_by_id,
     get_all_long_term_metadata,
     query_long_term,
     save_long_term,
@@ -93,7 +93,9 @@ def _save_long_term_with_conflict_check(user_id: str, fact: dict) -> None:
         action = _check_contradiction(candidate["fact"], fact["fact"])
 
         if action == "delete":
-            delete_long_term_by_fact(user_id, candidate["fact"])
+            # fact テキストは documents に保存されており metadata に含まれないため
+            # where フィルタは使えない。query で取得した ID で削除する。
+            delete_long_term_by_id(candidate["id"])
             break  # 既存を削除したら保存へ進む
         elif action == "keep":
             return  # 既存で十分なのでスキップ

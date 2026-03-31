@@ -29,23 +29,24 @@ func NewContextBuilder(
 }
 
 // BuildFullContext はユーザーの全データ（タスク・振り返り・カテゴリ）を収集し、
-// AIが解釈しやすい構造化テキストとして返します。
+// AIが解釈しやすい構造化テキストとタスク件数を返します。
 // 施策1: 達成率100%のスケジュール済みタスクをExemplar Injection（参照データ注入）として末尾に付与します。
 // 施策3: データ品質サマリーを先頭に付与し、欠損データをLLMが認識できるようにします。
-func (cb *ContextBuilder) BuildFullContext(userID uint) (string, error) {
+// タスク件数はコールドスタート判定のためにAIサービスへ明示的に渡します。
+func (cb *ContextBuilder) BuildFullContext(userID uint) (string, int, error) {
 	tasks, err := cb.taskRepo.FindByUserID(userID)
 	if err != nil {
-		return "", fmt.Errorf("context_builder: failed to fetch tasks: %w", err)
+		return "", 0, fmt.Errorf("context_builder: failed to fetch tasks: %w", err)
 	}
 
 	reflections, err := cb.reflectionRepo.FindAllByUserID(userID)
 	if err != nil {
-		return "", fmt.Errorf("context_builder: failed to fetch reflections: %w", err)
+		return "", 0, fmt.Errorf("context_builder: failed to fetch reflections: %w", err)
 	}
 
 	categories, err := cb.categoryRepo.FindByUserID(userID)
 	if err != nil {
-		return "", fmt.Errorf("context_builder: failed to fetch categories: %w", err)
+		return "", 0, fmt.Errorf("context_builder: failed to fetch categories: %w", err)
 	}
 
 	var sb strings.Builder
@@ -97,7 +98,7 @@ func (cb *ContextBuilder) BuildFullContext(userID uint) (string, error) {
 	// ── 施策1: Exemplar Injection（参照データ注入）────────────
 	sb.WriteString(buildFewShotSection(tasks))
 
-	return sb.String(), nil
+	return sb.String(), len(tasks), nil
 }
 
 // buildDataQualitySummary はデータ欠損の状況をサマリーテキストとして返します。

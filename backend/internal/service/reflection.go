@@ -74,8 +74,8 @@ func (s *ReflectionService) StreamChat(userID uint, reflectionID uint, userMessa
 		return fmt.Errorf("reflection_service: failed to save user message: %w", err)
 	}
 
-	// 2. ContextBuilderでユーザーの全データを収集
-	context, err := s.contextBuilder.BuildFullContext(userID)
+	// 2. ContextBuilderでユーザーの全データを収集（タスク件数は振り返りでは不要）
+	context, _, err := s.contextBuilder.BuildFullContext(userID)
 	if err != nil {
 		return fmt.Errorf("reflection_service: failed to build context: %w", err)
 	}
