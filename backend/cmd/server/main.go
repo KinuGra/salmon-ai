@@ -73,14 +73,14 @@ func main() {
 	//   middleware.MockAuth(30) → 佐藤 健太（慎重すぎ・コンフォートゾーン型）
 	//
 	// ファイルが存在しない場合はスキップ（本番環境への影響なし）
-	if seedSQL, err := os.ReadFile("db/seed.sql"); err == nil {
+	if seedSQL, err := os.ReadFile("pkg/database/seed.sql"); err == nil {
 		if _, err := sqlDB.Exec(string(seedSQL)); err != nil {
 			log.Printf("warning: failed to execute seed.sql: %v", err)
 		} else {
 			log.Println("seed.sql executed successfully")
 		}
 	} else {
-		log.Println("db/seed.sql not found, skipping seed")
+		log.Println("pkg/database/seed.sql not found, skipping seed")
 	}
 
 	// デフォルトカテゴリの作成
@@ -97,6 +97,8 @@ func main() {
 		}
 	}
 
+	// ここからDI（依存性注入）
+
 	// ── Repository ──────────────────────────────────────────
 	taskRepo := repository.NewTaskRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
@@ -106,19 +108,20 @@ func main() {
 	reflectionMessageRepo := repository.NewReflectionMessageRepository(db)
 	reportRepo := repository.NewReportRepository(db)
 
-        // ── AI Client ───────────────────────────────────────────
-        aiClient := aiclient.NewClient()
+	// ── AI Client ───────────────────────────────────────────
+	aiClient := aiclient.NewClient()
 
-        // ── ContextBuilder ──────────────────────────────────────
-        contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
+	// ── ContextBuilder ──────────────────────────────────────
+	contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
 
-        // ── Service ─────────────────────────────────────────────
-        taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo, aiClient)
+	// ── Service ─────────────────────────────────────────────
+	taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo, aiClient)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	userSvc := service.NewUserService(userRepo)
 	statsSvc := service.NewStatsService(statsRepo)
 	reportSvc := service.NewReportService(reportRepo, contextBuilder, aiClient)
 	reflectionSvc := service.NewReflectionService(reflectionRepo, reflectionMessageRepo, contextBuilder, aiClient)
+	scheduleSvc := service.NewScheduleService(taskRepo, contextBuilder, aiClient)
 
 	// ── Handler ─────────────────────────────────────────────
 	taskHandler := handler.NewTaskHandler(taskSvc)
@@ -127,7 +130,7 @@ func main() {
 	statsHandler := handler.NewStatsHandler(statsSvc, aiClient)
 	reportHandler := handler.NewReportHandler(reportSvc)
 	reflectionHandler := handler.NewReflectionHandler(reflectionSvc)
-
+	scheduleHandler := handler.NewScheduleHandler(scheduleSvc)
 
 	// モックユーザーIDの決定（MOCK_USER_ID 環境変数で切り替え）
 	// 10: 田中誠一 / 20: 鈴木彩花 / 30: 佐藤健太
@@ -183,8 +186,14 @@ func main() {
 	r.GET("/reflections/:id/messages", reflectionHandler.GetMessages)
 	r.GET("/ai/reflection/stream", reflectionHandler.Stream)
 
-	if err := r.Run(":8080"); err != nil {
+	// Schedule（スケジュールサポート）
+	r.POST("/ai/schedule/support", scheduleHandler.ScheduleSupport)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
-

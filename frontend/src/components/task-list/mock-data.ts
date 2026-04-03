@@ -17,7 +17,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: false,
     estimated_hours: 2,
     ai_estimated_hours: 5, // ← ズレ大（+3h）
+    ai_estimation_reason: null,
     due_date: fmt(0), // 今日
+    start_time: null,
+    end_time: null,
+    achievement_rate: null,
     category: { id: 1, name: "バックエンド", color: "#6366f1" },
   },
   {
@@ -28,7 +32,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: false,
     estimated_hours: 3,
     ai_estimated_hours: 5.5, // ← ズレ大（+2.5h）
+    ai_estimation_reason: null,
     due_date: fmt(1), // 明日
+    start_time: null,
+    end_time: null,
+    achievement_rate: null,
     category: { id: 2, name: "フロントエンド", color: "#ec4899" },
   },
   {
@@ -39,7 +47,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: false,
     estimated_hours: 1,
     ai_estimated_hours: 2.5, // ← ズレ中（+1.5h）
+    ai_estimation_reason: null,
     due_date: fmt(2),
+    start_time: null,
+    end_time: null,
+    achievement_rate: null,
     category: { id: 3, name: "設計", color: "#0ea5e9" },
   },
 
@@ -52,7 +64,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: false,
     estimated_hours: 2,
     ai_estimated_hours: 2.5, // ← ズレ小（許容範囲）
+    ai_estimation_reason: null,
     due_date: fmt(3),
+    start_time: null,
+    end_time: null,
+    achievement_rate: null,
     category: { id: 1, name: "バックエンド", color: "#6366f1" },
   },
   {
@@ -63,7 +79,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: false,
     estimated_hours: 0.5,
     ai_estimated_hours: 0.5,
+    ai_estimation_reason: null,
     due_date: fmt(4),
+    start_time: null,
+    end_time: null,
+    achievement_rate: null,
     category: { id: 1, name: "バックエンド", color: "#6366f1" },
   },
   {
@@ -74,7 +94,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: false,
     estimated_hours: 1,
     ai_estimated_hours: 1,
+    ai_estimation_reason: null,
     due_date: fmt(5),
+    start_time: null,
+    end_time: null,
+    achievement_rate: null,
     category: { id: 4, name: "デザイン", color: "#10b981" },
   },
 
@@ -87,7 +111,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: true,
     estimated_hours: 2,
     ai_estimated_hours: 2,
+    ai_estimation_reason: null,
     due_date: fmt(-3),
+    start_time: null,
+    end_time: null,
+    achievement_rate: 100,
     category: { id: 5, name: "インフラ", color: "#f59e0b" },
   },
   {
@@ -98,7 +126,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: true,
     estimated_hours: 1,
     ai_estimated_hours: 1,
+    ai_estimation_reason: null,
     due_date: fmt(-5),
+    start_time: null,
+    end_time: null,
+    achievement_rate: 100,
     category: { id: 2, name: "フロントエンド", color: "#ec4899" },
   },
 
@@ -111,7 +143,11 @@ export const MOCK_TASKS: Task[] = [
     is_completed: false,
     estimated_hours: 1.5,
     ai_estimated_hours: null,
+    ai_estimation_reason: null,
     due_date: null,
+    start_time: null,
+    end_time: null,
+    achievement_rate: null,
     category: { id: 6, name: "ドキュメント", color: "#8b5cf6" },
   },
 ];

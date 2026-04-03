@@ -26,7 +26,9 @@ export const PRIORITY_META: Record<
 /** 優先度昇順 → 期限昇順（null は末尾）でソート */
 export function sortTasks(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
+    const pa = a.priority ?? Infinity;
+    const pb = b.priority ?? Infinity;
+    if (pa !== pb) return pa - pb;
     if (!a.due_date && !b.due_date) return 0;
     if (!a.due_date) return 1;
     if (!b.due_date) return -1;

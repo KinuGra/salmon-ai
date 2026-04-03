@@ -3,11 +3,11 @@ import os
 import re
 from datetime import datetime
 
-from google import genai
-from google.genai import types
-
+from app.constants import GEMINI_MODEL
 from app.prompts.schedule import SCHEDULE_SUPPORT_PROMPT
 from app.schemas.schedule import Issues, ScheduleRequest, ScheduleResponse
+from google import genai
+from google.genai import types
 
 
 def support(req: ScheduleRequest) -> ScheduleResponse:
@@ -24,22 +24,27 @@ def support(req: ScheduleRequest) -> ScheduleResponse:
         tasks=tasks_text,
     )
 
+    print(f"[schedule/support] prompt length: {len(prompt)} chars", flush=True)
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set")
 
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
-            max_output_tokens=1024,
+            response_mime_type="application/json",
         ),
     )
 
     # マークダウンのコードブロックを除去
     text = response.text.strip()
+    finish_reason = (
+        response.candidates[0].finish_reason if response.candidates else "unknown"
+    )
+    print(f"[schedule/support] finish_reason: {finish_reason}", flush=True)
     text = re.sub(r"^```json\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     result = json.loads(text)

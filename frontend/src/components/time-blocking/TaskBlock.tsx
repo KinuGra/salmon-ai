@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useTouchDrag } from "./useTouchDrag";
+import { useDragContext } from "./DragContext";
 import { Task } from "./types";
 import {
   PX_PER_MIN,
@@ -15,6 +17,8 @@ const ACHIEVEMENT_OPTIONS = [0, 30, 70, 100] as const;
 type Props = {
   task: Task;
   onAchievementChange: (id: number, value: number) => void;
+  onEdit: (task: Task) => void;
+  onTouchDrop: (taskId: number, clientY: number, dragType: "scheduled" | "inbox") => void;
 };
 
 // ────────────────────────────────────────────
@@ -71,10 +75,12 @@ function AchievementSegment({
 function AiAlertPopover({
   task,
   aiDiff,
+  hasAiAlert,
   isHighAlert,
 }: {
   task: Task;
   aiDiff: number; // 符号付き: ai - estimated
+  hasAiAlert: boolean;
   isHighAlert: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -111,11 +117,13 @@ function AiAlertPopover({
         className={`text-[10px] font-extrabold px-1 py-0.5 rounded leading-none transition-all hover:scale-105 active:scale-95 ${
           isHighAlert
             ? "text-red-600 bg-red-50 hover:bg-red-100"
-            : "text-amber-600 bg-amber-50 hover:bg-amber-100"
+            : hasAiAlert
+              ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
+              : "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
         }`}
-        aria-label="AI見積もりとの乖離を確認"
+        aria-label="AI見積もりを確認"
       >
-        ！
+        AI
       </button>
 
       {/* ポップオーバー本体: left-0 top-6 で右下に展開、画面端対策に max-w */}
@@ -163,7 +171,9 @@ function AiAlertPopover({
           <p className="text-[10px] text-slate-500 leading-relaxed mb-3">
             {isHighAlert
               ? "大幅な乖離があります。見積もりの見直しを推奨します。"
-              : "やや差があります。余裕を持った計画を検討してください。"}
+              : hasAiAlert
+                ? "やや差があります。余裕を持った計画を検討してください。"
+                : "AIの見積もりとほぼ一致しています。"}
           </p>
 
           {/* 再見積もりボタン */}
@@ -190,11 +200,33 @@ function AiAlertPopover({
 // ────────────────────────────────────────────
 // タスクブロック本体
 // ────────────────────────────────────────────
-export default function TaskBlock({ task, onAchievementChange }: Props) {
-  const [isDragging, setIsDragging] = useState(false);
+export default function TaskBlock({ task, onAchievementChange, onEdit, onTouchDrop }: Props) {
+  const [mouseDragging, setMouseDragging] = useState(false);
+  const blockRef = useRef<HTMLDivElement>(null);
+  const { dragInfoRef, lastDropXRef } = useDragContext();
+
+  const { isDragging: touchDragging, ghostPortal } = useTouchDrag({
+    elementRef: blockRef,
+    onDragStart: (meta) => { dragInfoRef.current = meta; },
+    onDrop: (clientX, clientY) => {
+      lastDropXRef.current = clientX;
+      onTouchDrop(task.id, clientY, "scheduled");
+    },
+    getDragMeta: () => {
+      const durationMins = task.end_time && task.start_time
+        ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+        : (task.estimated_hours ?? 0.5) * 60;
+      return { durationMins: Math.round(durationMins) };
+    },
+    borderRadius: "12px",
+    freeX: false,
+  });
+
+  const isDragging = mouseDragging || touchDragging;
 
   if (!task.start_time) return null;
-  if (!task.end_time && task.estimated_hours == null) return null;
+  // end_time も estimated_hours もない場合はブロッキング不可
+  // (estimated_hours=null は 1h=60min のデフォルトで表示する)
 
   const top = isoToTop(task.start_time);
   const startLabel = isoToLabel(task.start_time);
@@ -202,7 +234,7 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
 
   const durationMins = task.end_time
     ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
-    : (task.estimated_hours ?? 0) * 60;
+    : (task.estimated_hours ?? 1) * 60; // null の場合は 1h をデフォルト
   const height = Math.max(durationMins * PX_PER_MIN, 36);
 
   const color = task.category?.color ?? "#94a3b8";
@@ -231,29 +263,32 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
   const isCompact = height < 52;
 
   return (
-    <div
-      // flex-col にして内部の行を縦積みで管理
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("taskId", String(task.id));
-        e.dataTransfer.setData("dragType", "scheduled");
-        const rect = e.currentTarget.getBoundingClientRect();
-        const grabOffset = Math.round(e.clientY - rect.top);
-        e.dataTransfer.setData("grabOffset", String(grabOffset));
-        e.dataTransfer.effectAllowed = "move";
-        // dragover 中に dataTransfer.getData が使えないため window に退避
-        const durationMins = task.end_time && task.start_time
-          ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
-          : (task.estimated_hours ?? 0.5) * 60;
-        (window as any).__dragInfo = { durationMins: Math.round(durationMins), grabOffset };
-        // ghost 画像が capture された後に元ブロックを非表示にする
-        setTimeout(() => setIsDragging(true), 0);
-      }}
-      onDragEnd={() => setIsDragging(false)}
+    <>
+      {ghostPortal}
+      <div
+        // flex-col にして内部の行を縦積みで管理
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("taskId", String(task.id));
+          e.dataTransfer.setData("dragType", "scheduled");
+          const rect = e.currentTarget.getBoundingClientRect();
+          const grabOffset = Math.round(e.clientY - rect.top);
+          e.dataTransfer.setData("grabOffset", String(grabOffset));
+          e.dataTransfer.effectAllowed = "move";
+          const durationMins = task.end_time && task.start_time
+            ? (new Date(task.end_time).getTime() - new Date(task.start_time).getTime()) / 60000
+            : (task.estimated_hours ?? 0.5) * 60;
+          dragInfoRef.current = { durationMins: Math.round(durationMins), grabOffset };
+          setTimeout(() => setMouseDragging(true), 0);
+        }}
+        ref={blockRef}
+        onDragEnd={() => setMouseDragging(false)}
+      onClick={() => onEdit(task)}
       className="absolute left-0 right-1 rounded-xl overflow-visible transition-all flex flex-col cursor-grab active:cursor-grabbing"
       style={{
         top,
         height,
+        touchAction: "none",
         background: bgColor,
         border: `1.5px solid ${borderColor}`,
         boxShadow: isActive
@@ -295,14 +330,16 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         </div>
 
         {/* 右: 達成度セグメントコントロール（常に表示・コンパクト固定） */}
-        <AchievementSegment
-          taskId={task.id}
-          value={task.achievement_rate}
-          borderColor={borderColor}
-          accentColor={accentColor}
-          metaColor={metaColor}
-          onChange={onAchievementChange}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <AchievementSegment
+            taskId={task.id}
+            value={task.achievement_rate}
+            borderColor={borderColor}
+            accentColor={accentColor}
+            metaColor={metaColor}
+            onChange={onAchievementChange}
+          />
+        </div>
       </div>
 
       {/* ── 下段: 見込み時間 + AIアラート（通常ブロックのみ） ── */}
@@ -316,10 +353,11 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
               {task.estimated_hours}h
             </span>
           )}
-          {hasAiAlert && aiDiff !== null && (
+          {aiDiff !== null && (
             <AiAlertPopover
               task={task}
               aiDiff={aiDiff}
+              hasAiAlert={hasAiAlert}
               isHighAlert={isHighAlert}
             />
           )}
@@ -334,5 +372,6 @@ export default function TaskBlock({ task, onAchievementChange }: Props) {
         <div className="w-8 h-0.5 rounded-full bg-slate-400 opacity-50" />
       </div>
     </div>
+    </>
   );
 }

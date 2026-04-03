@@ -1,9 +1,31 @@
-**/node_modules
-**/.next
+# .dockerignore（リポジトリルート）
+
+# 環境変数
+backend/.env
+backend/*.env
+backend/.env.*
+ai/.env
+ai/*.env
+ai/.env.*
+frontend/.env
+frontend/.env.local
+frontend/*.env
+
+# Git
+**/.git/
+
+# Node
+**/node_modules/
+**/.next/
 **/dist
 **/build
-**/.git
-**/.DS_Store
 **/npm-debug.log
 **/yarn-error.log
 **/yarn.lock
+
+# Python
+**/__pycache__/
+**/*.pyc
+
+# OS
+**/.DS_Store

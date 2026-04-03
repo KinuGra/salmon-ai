@@ -1,11 +1,11 @@
 import os
 
-from google import genai
-from google.genai import types
-
 from app.memory.injector import enrich_context
 from app.prompts.report import COLD_START_PROMPT, REPORT_PROMPT
+from app.constants import GEMINI_MODEL
 from app.schemas.report import ReportRequest, ReportResponse
+from google import genai
+from google.genai import types
 
 # 施策2: コールドスタート判定の閾値。
 # タスク5件未満は統計的パターン抽出が困難なため、行動経済学ベースの仮説提示プロンプトを使用します。
@@ -42,7 +42,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
     prompt_template = _select_prompt(req.task_count)
     prompt = prompt_template.format(context=enriched_context)
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
@@ -54,7 +54,9 @@ def generate_report(req: ReportRequest) -> ReportResponse:
     )
 
     if not response.candidates:
-        raise ValueError(f"No candidates in response. prompt_feedback: {response.prompt_feedback}")
+        raise ValueError(
+            f"No candidates in response. prompt_feedback: {response.prompt_feedback}"
+        )
 
     candidate = response.candidates[0]
     if not candidate.content.parts:
