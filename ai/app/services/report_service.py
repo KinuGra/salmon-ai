@@ -46,7 +46,7 @@ def generate_report(req: ReportRequest) -> ReportResponse:
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
-            # gemini-2.5-flash のデフォルト thinking が max_output_tokens の大部分を消費し
+            # gemini-2.0-flash のデフォルト thinking が max_output_tokens の大部分を消費し
             # 日本語レポート本文（1200〜2000文字 ≒ 最大6000トークン）が収まらず切断される。
             # 16384 に引き上げて thinking + レポート本文の両方を収容する。
             max_output_tokens=16384,

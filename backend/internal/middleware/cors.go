@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"os"
 	"strings"
 
 	"github.com/gin-contrib/cors"
@@ -8,24 +9,19 @@ import (
 )
 
 func CORS() gin.HandlerFunc {
-	config := cors.Config{
-		AllowOrigins: []string{
-			"http://localhost:3000",
-			"https://salmon-ai.vercel.app",
-		},
-		AllowOriginFunc: func(origin string) bool {
-			return strings.HasSuffix(origin, ".vercel.app")
-		},
-		AllowMethods: []string{
-			"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS",
-		},
-		AllowHeaders: []string{
-			"Authorization",
-			"Content-Type",
-			"Origin",
-			"Accept",
-			"X-Requested-With",
-		},
+	allowOrigins := os.Getenv("ALLOW_ORIGINS")
+
+	var origins []string
+	if allowOrigins == "" {
+		origins = []string{"http://localhost:3000"}
+	} else {
+		origins = strings.Split(allowOrigins, ",")
 	}
-	return cors.New(config)
+
+	return cors.New(cors.Config{
+		AllowOrigins:     origins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
 }
