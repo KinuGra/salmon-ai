@@ -111,7 +111,7 @@ func main() {
 	aiClient := aiclient.NewClient()
 
 	// ── ContextBuilder ──────────────────────────────────────
-	contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo)
+	contextBuilder := service.NewContextBuilder(taskRepo, reflectionRepo, categoryRepo, userRepo, reportRepo)
 
 	// ── Service ─────────────────────────────────────────────
 	taskSvc := service.NewTaskService(taskRepo, userRepo, categoryRepo, aiClient)

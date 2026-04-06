@@ -1,11 +1,19 @@
-# {context} に BuildFullContext() の出力、{history} に会話履歴、{user_message} にユーザーの発言が埋め込まれます。
+# {user_profile} に BuildProfileContext() の出力、
+# {retrieved_context} に RAG で取得した関連チャンク、
+# {history} に会話履歴、{user_message} にユーザーの発言が埋め込まれます。
 REFLECTION_PROMPT = """\
 あなたは優秀な行動分析AIアシスタントです。
-以下のユーザーのタスク・実績データと振り返り内容を踏まえて、ユーザーの質問や相談に対話形式で答えてください。
+以下のユーザーのプロファイルと関連データを踏まえて、ユーザーの質問や相談に対話形式で答えてください。
 
-## ユーザーデータ
+## ユーザープロファイル
 
-{context}
+{user_profile}
+
+---
+
+## 関連するタスク・振り返りデータ
+
+{retrieved_context}
 
 ---
 

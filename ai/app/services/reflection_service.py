@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Generator
 
@@ -5,14 +6,22 @@ import google.genai.errors
 from app.constants import GEMINI_MODEL
 from app.prompts.reflection import REFLECTION_PROMPT
 from app.schemas.reflection import ReflectionRequest
+from app.services import rag_retriever
 from google import genai
 from google.genai import types
+
+logger = logging.getLogger(__name__)
 
 
 def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, None]:
     """
     ユーザーのコンテキストと会話履歴を受け取り、
     Gemini APIで返答をストリーミング生成します。
+
+    Profile-Anchored RAG:
+    - user_profile（user_context + 最新 Report）を常時注入するプロファイルアンカーとして使用
+    - context から user_message に関連するチャンクのみを RAG で取得
+    - user_id=0 または user_profile が未設定の場合は後方互換フォールバックを適用
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -20,15 +29,30 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
 
     client = genai.Client(api_key=api_key)
 
-    # 会話履歴を読みやすいテキストに変換
     history_lines = []
     for msg in req.messages:
         role_label = "ユーザー" if msg.role == "user" else "AI"
         history_lines.append(f"{role_label}: {msg.content}")
     history = "\n".join(history_lines) if history_lines else "（会話履歴なし）"
 
+    # RAG: context をインデックスし、user_message に関連するチャンクを取得
+    if req.context.strip():
+        retrieved_chunks = rag_retriever.retrieve(
+            user_id=req.user_id,
+            context=req.context,
+            query=req.user_message,
+            k=5,
+        )
+        retrieved_context = "\n\n".join(retrieved_chunks) if retrieved_chunks else "（関連データなし）"
+    else:
+        retrieved_context = "（データなし）"
+
+    # user_profile が空の場合（Go 側が未対応の旧クライアント）はフォールバック
+    user_profile = req.user_profile if req.user_profile.strip() else "（プロファイル未設定）"
+
     prompt = REFLECTION_PROMPT.format(
-        context=req.context,
+        user_profile=user_profile,
+        retrieved_context=retrieved_context,
         history=history,
         user_message=req.user_message,
     )

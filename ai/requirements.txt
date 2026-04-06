@@ -4,3 +4,7 @@ pydantic
 python-dotenv
 httpx
 google-genai
+langchain
+langchain-community
+langchain-google-genai
+chromadb

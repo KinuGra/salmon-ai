@@ -56,6 +56,8 @@ type chatMessage struct {
 // chatRequest はAIサービスの /reflection/stream に送るリクエスト構造体です。
 type chatRequest struct {
 	Context     string        `json:"context"`
+	UserID      uint          `json:"user_id"`      // RAG インデックスのキー
+	UserProfile string        `json:"user_profile"` // プロファイルアンカー: user_context + 最新 Report
 	Messages    []chatMessage `json:"messages"`
 	UserMessage string        `json:"user_message"`
 }
@@ -79,6 +81,12 @@ func (s *ReflectionService) StreamChat(userID uint, reflectionID uint, userMessa
 		return fmt.Errorf("reflection_service: failed to build context: %w", err)
 	}
 
+	// 2b. プロファイルアンカー（user_context + 最新 Report）を取得
+	userProfile, err := s.contextBuilder.BuildProfileContext(userID)
+	if err != nil {
+		return fmt.Errorf("reflection_service: failed to build profile context: %w", err)
+	}
+
 	// 3. チャット履歴を取得（今回追加したユーザーメッセージを含む）
 	messages, err := s.reflectionMessageRepo.FindByReflectionID(reflectionID)
 	if err != nil {
@@ -95,6 +103,8 @@ func (s *ReflectionService) StreamChat(userID uint, reflectionID uint, userMessa
 
 	req := chatRequest{
 		Context:     context,
+		UserID:      userID,
+		UserProfile: userProfile,
 		Messages:    chatMessages,
 		UserMessage: userMessage,
 	}

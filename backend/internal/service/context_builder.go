@@ -14,18 +14,54 @@ type ContextBuilder struct {
 	taskRepo       *repository.TaskRepository
 	reflectionRepo *repository.ReflectionRepository
 	categoryRepo   *repository.CategoryRepository
+	userRepo       *repository.UserRepository
+	reportRepo     *repository.ReportRepository
 }
 
 func NewContextBuilder(
 	taskRepo *repository.TaskRepository,
 	reflectionRepo *repository.ReflectionRepository,
 	categoryRepo *repository.CategoryRepository,
+	userRepo *repository.UserRepository,
+	reportRepo *repository.ReportRepository,
 ) *ContextBuilder {
 	return &ContextBuilder{
 		taskRepo:       taskRepo,
 		reflectionRepo: reflectionRepo,
 		categoryRepo:   categoryRepo,
+		userRepo:       userRepo,
+		reportRepo:     reportRepo,
 	}
+}
+
+// BuildProfileContext はユーザーの固定プロファイル情報（行動特性 + 最新レポート）を返します。
+// 振り返り RAG のプロファイルアンカーとして常時注入するために使います。
+// レポートが存在しない場合はユーザー特性のみを返します。
+func (cb *ContextBuilder) BuildProfileContext(userID uint) (string, error) {
+	user, err := cb.userRepo.FindByID(userID)
+	if err != nil {
+		return "", fmt.Errorf("context_builder: failed to fetch user: %w", err)
+	}
+
+	var sb strings.Builder
+
+	sb.WriteString("## ユーザー特性\n\n")
+	if user.UserContext != nil && *user.UserContext != "" {
+		sb.WriteString(*user.UserContext)
+	} else {
+		sb.WriteString("（未設定）")
+	}
+	sb.WriteString("\n\n")
+
+	report, err := cb.reportRepo.FindLatestByUserID(userID)
+	if err == nil {
+		sb.WriteString("## 最新の自己分析レポート\n\n")
+		sb.WriteString(report.Content)
+		sb.WriteString("\n")
+	}
+	// レポートが存在しない場合（gorm.ErrRecordNotFound）はスキップして正常終了
+
+	return sb.String(), nil
 }
 
 // BuildFullContext はユーザーの全データ（タスク・振り返り・カテゴリ）を収集し、
