@@ -80,7 +80,7 @@ func (s *ScheduleService) Support(userID uint, date string) (*ScheduleSupportRes
 	}
 
 	// 3. ContextBuilderでユーザーのコンテキストを生成
-	ctx, err := s.contextBuilder.BuildFullContext(userID)
+	ctx, _, err := s.contextBuilder.BuildFullContext(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build context: %w", err)
 	}

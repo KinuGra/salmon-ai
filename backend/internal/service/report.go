@@ -37,7 +37,9 @@ func (s *ReportService) GetLatestReport(userID uint) (*model.Report, error) {
 // ── AI通信用の内部DTOです ──────────────────────────────────────
 
 type generateReportRequest struct {
-	Context string `json:"context"`
+	UserID    string `json:"user_id"`
+	Context   string `json:"context"`
+	TaskCount int    `json:"task_count"`
 }
 
 type generateReportResponse struct {
@@ -48,13 +50,17 @@ type generateReportResponse struct {
 // POSTしてMarkdown形式のレポートを取得します。返ってきた内容をDBに新規保存して返します。
 func (s *ReportService) GenerateReport(userID uint) (*model.Report, error) {
 	// 1. ユーザーの全データからコンテキストを生成
-	ctx, err := s.contextBuilder.BuildFullContext(userID)
+	ctx, taskCount, err := s.contextBuilder.BuildFullContext(userID)
 	if err != nil {
 		return nil, fmt.Errorf("report_service: failed to build context: %w", err)
 	}
 
 	// 2. AIサービスへリクエスト
-	data, err := s.aiClient.Post("/report/generate", generateReportRequest{Context: ctx})
+	data, err := s.aiClient.Post("/report/generate", generateReportRequest{
+		UserID:    fmt.Sprintf("%d", userID),
+		Context:   ctx,
+		TaskCount: taskCount,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("report_service: AI request failed: %w", err)
 	}

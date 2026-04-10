@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -131,10 +132,21 @@ func main() {
 	reflectionHandler := handler.NewReflectionHandler(reflectionSvc)
 	scheduleHandler := handler.NewScheduleHandler(scheduleSvc)
 
+	// モックユーザーIDの決定（MOCK_USER_ID 環境変数で切り替え）
+	// 10: 田中誠一 / 20: 鈴木彩花 / 30: 佐藤健太
+	// 未設定の場合は起動時に作成した mock@example.com ユーザーを使用
+	mockUserID := mockUser.ID
+	if envID := os.Getenv("MOCK_USER_ID"); envID != "" {
+		if id, err := strconv.ParseUint(envID, 10, 64); err == nil && id > 0 {
+			mockUserID = uint(id)
+		}
+	}
+	log.Printf("mock user ID: %d", mockUserID)
+
 	// ミドルウェアの登録
 	r := gin.Default()
 	r.Use(middleware.CORS())
-	r.Use(middleware.MockAuth(mockUser.ID))
+	r.Use(middleware.MockAuth(mockUserID))
 
 	r.GET("/health", func(c *gin.Context) {
 		userID, _ := c.Get("userID")

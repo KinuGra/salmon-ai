@@ -40,6 +40,10 @@ def generate_reflection_stream(req: ReflectionRequest) -> Generator[str, None, N
             config=types.GenerateContentConfig(
                 temperature=0.7,
                 max_output_tokens=1024,
+                # gemini-2.5-flash はデフォルトで thinking が有効。
+                # thinking の最小バジェット（約8192トークン）が max_output_tokens=1024 を
+                # 超えるため 400 エラーになる。会話応答に deep thinking は不要なので無効化。
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         ):
             if chunk.text:
