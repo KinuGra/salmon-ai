@@ -9,6 +9,7 @@ class Message(BaseModel):
 
 
 class ReflectionRequest(BaseModel):
+    user_id: str
     context: str
     messages: List[Message]
     user_message: str
